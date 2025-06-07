@@ -10,22 +10,23 @@ export default async function Dashboard() {
   
   const { data: { session } } = await supabase.auth.getSession();
   
-  // For development mode - use mock data when no session exists
+  // Check if mock data is enabled (either in dev mode or via env var)
   const isDev = process.env.NODE_ENV === 'development';
+  const enableMockData = isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
   
-  // Mock data for development
+  // Mock data for development or when mock data is enabled
   const mockUserId = 'dev-user-id';
   const mockLeadsCount = 5;
   const mockFollowUpsCount = 2;
   const mockNotificationsCount = 3;
   const mockTrainingCount = 4;
   
-  // If we have a session, get real data, otherwise use mock data in development
+  // If we have a session, get real data, otherwise use mock data if enabled
   let profile = null;
-  let leadsCount = isDev ? mockLeadsCount : 0;
-  let followUpsCount = isDev ? mockFollowUpsCount : 0;
-  let notificationsCount = isDev ? mockNotificationsCount : 0; 
-  let trainingCount = isDev ? mockTrainingCount : 0;
+  let leadsCount = enableMockData ? mockLeadsCount : 0;
+  let followUpsCount = enableMockData ? mockFollowUpsCount : 0;
+  let notificationsCount = enableMockData ? mockNotificationsCount : 0; 
+  let trainingCount = enableMockData ? mockTrainingCount : 0;
   
   // Only query Supabase if we have a session
   if (session) {
@@ -118,15 +119,15 @@ export default async function Dashboard() {
   }
   
   // Default to manager role even if no profile exists
-  const isManager = isDev || (profile?.role === 'manager') || !profile;
+  const isManager = enableMockData || (profile?.role === 'manager') || !profile;
   
   return (
     <div>
       <h1 className="text-2xl font-semibold text-gray-900 mb-6">Dashboard</h1>
       
-      {!session && isDev && (
+      {!session && enableMockData && (
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-          <h3 className="text-sm font-medium text-yellow-800">Development Mode</h3>
+          <h3 className="text-sm font-medium text-yellow-800">Mock Data Mode</h3>
           <p className="mt-1 text-xs text-yellow-700">
             Using mock data because no authenticated session was found.
           </p>

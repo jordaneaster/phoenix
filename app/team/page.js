@@ -10,11 +10,12 @@ export default async function Team() {
   
   const { data: { session } } = await supabase.auth.getSession();
   
-  // For development mode - use mock data when no session exists
+  // Check if mock data is enabled (either in dev mode or via env var)
   const isDev = process.env.NODE_ENV === 'development';
+  const enableMockData = isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
   
   // Default values
-  let isManager = isDev ? true : false;
+  let isManager = enableMockData ? true : false;
   let teamMembers = [];
   let performanceStats = {
     totalLeads: 0,
@@ -89,8 +90,8 @@ export default async function Team() {
           : 0;
       }
     }
-  } else if (isDev) {
-    // Mock team members data for development
+  } else if (enableMockData) {
+    // Mock team members data for development or when mock data is enabled
     teamMembers = [
       {
         id: '1',

@@ -10,11 +10,12 @@ export default async function FollowUps() {
   
   const { data: { session } } = await supabase.auth.getSession();
   
-  // For development mode - use mock data when no session exists
+  // Check if mock data is enabled (either in dev mode or via env var)
   const isDev = process.env.NODE_ENV === 'development';
+  const enableMockData = isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
   
   // Default values and mock data
-  let isManager = isDev ? true : false;
+  let isManager = enableMockData ? true : false;
   let followUps = [];
   
   // Only query Supabase if we have a session
@@ -54,8 +55,8 @@ export default async function FollowUps() {
     if (!error && followUpLeads) {
       followUps = followUpLeads;
     }
-  } else if (isDev) {
-    // Mock follow-up data for development
+  } else if (enableMockData) {
+    // Mock follow-up data
     const now = new Date();
     
     // Create dates 4, 5, and 7 days ago

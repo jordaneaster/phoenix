@@ -11,11 +11,12 @@ export default async function Leads({ searchParams }) {
   
   const { data: { session } } = await supabase.auth.getSession();
   
-  // For development mode - use mock data when no session exists
+  // Check if mock data is enabled (either in dev mode or via env var)
   const isDev = process.env.NODE_ENV === 'development';
+  const enableMockData = isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
   
   // Default values and mock data
-  let isManager = isDev ? true : false;
+  let isManager = enableMockData ? true : false;
   let leads = [];
   
   // Status filter
@@ -56,8 +57,8 @@ export default async function Leads({ searchParams }) {
     if (!error && userLeads) {
       leads = userLeads;
     }
-  } else if (isDev) {
-    // Mock leads data for development
+  } else if (enableMockData) {
+    // Mock leads data
     leads = [
       {
         id: '1',
@@ -121,9 +122,9 @@ export default async function Leads({ searchParams }) {
         </div>
       </div>
       
-      {!session && isDev && (
+      {!session && enableMockData && (
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-          <h3 className="text-sm font-medium text-yellow-800">Development Mode</h3>
+          <h3 className="text-sm font-medium text-yellow-800">Mock Data Mode</h3>
           <p className="mt-1 text-xs text-yellow-700">
             Using mock leads data because no authenticated session was found.
           </p>

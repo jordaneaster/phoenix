@@ -10,8 +10,9 @@ export default async function Notifications() {
   
   const { data: { session } } = await supabase.auth.getSession();
   
-  // For development mode - use mock data when no session exists
+  // Check if mock data is enabled (either in dev mode or via env var)
   const isDev = process.env.NODE_ENV === 'development';
+  const enableMockData = isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
   
   // Default values
   let notifications = [];
@@ -30,8 +31,8 @@ export default async function Notifications() {
       notifications = userNotifications;
       unreadCount = userNotifications.filter(n => !n.read).length;
     }
-  } else if (isDev) {
-    // Mock notifications for development
+  } else if (enableMockData) {
+    // Mock notifications for development or when mock data is enabled
     const now = new Date();
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);

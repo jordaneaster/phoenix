@@ -10,8 +10,9 @@ export default async function Training() {
   
   const { data: { session } } = await supabase.auth.getSession();
   
-  // For development mode - use mock data when no session exists
+  // Check if mock data is enabled (either in dev mode or via env var)
   const isDev = process.env.NODE_ENV === 'development';
+  const enableMockData = isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
   
   // Default values
   let trainingContent = [];
@@ -39,8 +40,8 @@ export default async function Training() {
     completedTrainingIds = new Set(
       completedTraining ? completedTraining.map(item => item.training_id) : []
     );
-  } else if (isDev) {
-    // Mock training content for development
+  } else if (enableMockData) {
+    // Mock training content
     trainingContent = [
       {
         id: '1',
