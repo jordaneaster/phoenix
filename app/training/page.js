@@ -3,6 +3,9 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { FiPlay, FiCheck, FiFileText } from 'react-icons/fi';
 
+// FORCE MOCK DATA: Always enable mock data in any environment
+const ALWAYS_ENABLE_MOCK = true;
+
 export const dynamic = 'force-dynamic';
 
 export default async function Training() {
@@ -10,9 +13,9 @@ export default async function Training() {
   
   const { data: { session } } = await supabase.auth.getSession();
   
-  // Check if mock data is enabled (either in dev mode or via env var)
+  // Check if mock data is enabled (either in dev mode, via env var, or forced)
   const isDev = process.env.NODE_ENV === 'development';
-  const enableMockData = isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
+  const enableMockData = ALWAYS_ENABLE_MOCK || isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
   
   // Default values
   let trainingContent = [];

@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { FiPlus } from 'react-icons/fi';
 import StatusFilter from '../../components/leads/StatusFilter';
 
+// FORCE MOCK DATA: Always enable mock data in any environment
+const ALWAYS_ENABLE_MOCK = true;
+
 export const dynamic = 'force-dynamic';
 
 export default async function Leads({ searchParams }) {
@@ -11,9 +14,9 @@ export default async function Leads({ searchParams }) {
   
   const { data: { session } } = await supabase.auth.getSession();
   
-  // Check if mock data is enabled (either in dev mode or via env var)
+  // Check if mock data is enabled (either in dev mode, via env var, or forced)
   const isDev = process.env.NODE_ENV === 'development';
-  const enableMockData = isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
+  const enableMockData = ALWAYS_ENABLE_MOCK || isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
   
   // Default values and mock data
   let isManager = enableMockData ? true : false;
@@ -57,8 +60,10 @@ export default async function Leads({ searchParams }) {
     if (!error && userLeads) {
       leads = userLeads;
     }
-  } else if (enableMockData) {
-    // Mock leads data
+  } 
+  
+  // Hard-coded mock leads data
+  if (enableMockData && !session) {
     leads = [
       {
         id: '1',

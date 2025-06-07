@@ -1,6 +1,9 @@
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 
+// FORCE MOCK DATA: Always enable mock data in any environment
+const ALWAYS_ENABLE_MOCK = true;
+
 export async function middleware(req) {
   // Create a response object
   const res = NextResponse.next();
@@ -25,9 +28,9 @@ export async function middleware(req) {
     const { data } = await supabase.auth.getSession();
     const session = data?.session;
     
-    // Check if mock data is enabled (either in dev mode or via env var)
+    // Check if mock data is enabled (either in dev mode, via env var, or forced)
     const isDev = process.env.NODE_ENV === 'development';
-    const enableMockData = isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
+    const enableMockData = ALWAYS_ENABLE_MOCK || isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
     
     // If mock data is enabled and no session, allow access
     if (enableMockData && !session) {

@@ -3,6 +3,9 @@ import { cookies } from 'next/headers';
 import DashboardCard from '../../components/dashboard/DashboardCard';
 import { FiUsers, FiClock, FiBook, FiUsers as FiTeam, FiBell, FiSettings } from 'react-icons/fi';
 
+// FORCE MOCK DATA: Always enable mock data in any environment
+const ALWAYS_ENABLE_MOCK = true;
+
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
@@ -10,11 +13,11 @@ export default async function Dashboard() {
   
   const { data: { session } } = await supabase.auth.getSession();
   
-  // Check if mock data is enabled (either in dev mode or via env var)
+  // Check if mock data is enabled (either in dev mode, via env var, or forced)
   const isDev = process.env.NODE_ENV === 'development';
-  const enableMockData = isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
+  const enableMockData = ALWAYS_ENABLE_MOCK || isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
   
-  // Mock data for development or when mock data is enabled
+  // Mock data values - now always available in production
   const mockUserId = 'dev-user-id';
   const mockLeadsCount = 5;
   const mockFollowUpsCount = 2;

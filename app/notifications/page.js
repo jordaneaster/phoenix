@@ -3,6 +3,9 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { FiBell, FiClock, FiCheckCircle, FiAlertTriangle, FiInfo } from 'react-icons/fi';
 
+// FORCE MOCK DATA: Always enable mock data in any environment
+const ALWAYS_ENABLE_MOCK = true;
+
 export const dynamic = 'force-dynamic';
 
 export default async function Notifications() {
@@ -10,9 +13,9 @@ export default async function Notifications() {
   
   const { data: { session } } = await supabase.auth.getSession();
   
-  // Check if mock data is enabled (either in dev mode or via env var)
+  // Check if mock data is enabled (either in dev mode, via env var, or forced)
   const isDev = process.env.NODE_ENV === 'development';
-  const enableMockData = isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
+  const enableMockData = ALWAYS_ENABLE_MOCK || isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
   
   // Default values
   let notifications = [];
@@ -31,18 +34,10 @@ export default async function Notifications() {
       notifications = userNotifications;
       unreadCount = userNotifications.filter(n => !n.read).length;
     }
-  } else if (enableMockData) {
-    // Mock notifications for development or when mock data is enabled
-    const now = new Date();
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    const twoDaysAgo = new Date(now);
-    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-    
-    const fourDaysAgo = new Date(now);
-    fourDaysAgo.setDate(fourDaysAgo.getDate() - 4);
-    
+  } 
+  
+  // Force mock notifications for all environments
+  if (enableMockData && !session) {
     notifications = [
       {
         id: '1',
@@ -50,7 +45,7 @@ export default async function Notifications() {
         message: 'Lead John Smith has not been contacted in over 3 days',
         type: 'follow_up',
         read: false,
-        created_at: yesterday.toISOString(),
+        created_at: new Date(Date.now() - 86400000).toISOString(), // yesterday
         user_id: 'dev-user-id'
       },
       {
@@ -59,7 +54,7 @@ export default async function Notifications() {
         message: 'You have been assigned a new lead: Jane Doe',
         type: 'lead_assigned',
         read: false,
-        created_at: yesterday.toISOString(),
+        created_at: new Date(Date.now() - 86400000).toISOString(), // yesterday
         user_id: 'dev-user-id'
       },
       {
@@ -68,7 +63,7 @@ export default async function Notifications() {
         message: 'New product training is available in the Training Center',
         type: 'training',
         read: true,
-        created_at: twoDaysAgo.toISOString(),
+        created_at: new Date(Date.now() - 172800000).toISOString(), // two days ago
         user_id: 'dev-user-id'
       },
       {
@@ -77,7 +72,7 @@ export default async function Notifications() {
         message: 'Lead Michael Brown has been marked as qualified',
         type: 'lead_update',
         read: true,
-        created_at: fourDaysAgo.toISOString(),
+        created_at: new Date(Date.now() - 345600000).toISOString(), // four days ago
         user_id: 'dev-user-id'
       }
     ];
