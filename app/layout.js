@@ -16,6 +16,21 @@ export default function RootLayout({ children }) {
           {children}
         </main>
         <Toaster position="top-right" />
+
+        {/* Add error boundary for development feedback */}
+        {process.env.NODE_ENV === 'development' && (
+          <div
+            id="dev-error-container"
+            style={{ display: 'none' }}
+            className="fixed bottom-0 left-0 right-0 bg-red-100 text-red-800 p-4 border-t border-red-200"
+          >
+            <p className="font-medium">Error:</p>
+            <pre
+              id="dev-error-message"
+              className="mt-2 text-sm overflow-auto max-h-32"
+            ></pre>
+          </div>
+        )}
       </body>
     </html>
   );
