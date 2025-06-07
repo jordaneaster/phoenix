@@ -25,6 +25,16 @@ export async function middleware(req) {
     const { data } = await supabase.auth.getSession();
     const session = data?.session;
     
+    // Check if mock data is enabled (either in dev mode or via env var)
+    const isDev = process.env.NODE_ENV === 'development';
+    const enableMockData = isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
+    
+    // If mock data is enabled and no session, allow access
+    if (enableMockData && !session) {
+      console.log('Mock data mode: allowing access to mock data');
+      return res;
+    }
+    
     // If user is authenticated and not already on dashboard, redirect to dashboard
     if (session && pathname !== '/dashboard') {
       console.log('Authenticated user detected - redirecting to dashboard');
