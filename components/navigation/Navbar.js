@@ -4,19 +4,52 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { supabase } from '../../lib/supabase/client';
-import { FiMenu, FiX, FiBell, FiUser } from 'react-icons/fi';
+import { FiHome, FiUsers, FiClock, FiBook, FiBell, FiSettings, FiMenu, FiX, FiLogOut } from 'react-icons/fi';
 
-export default function Navbar({ user, notifications = [] }) {
+export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [user, setUser] = useState(null);
+  const [isManager, setIsManager] = useState(false);
   const pathname = usePathname();
-  
+
   useEffect(() => {
-    setUnreadCount(notifications.filter(n => !n.read).length);
-  }, [notifications]);
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUser(session.user);
+        
+        // Check if user is manager
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        
+        setIsManager(profile?.role === 'manager');
+      }
+    };
+    
+    checkSession();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
+
+  const navItems = [
+    { name: 'Dashboard', href: '/dashboard', icon: FiHome },
+    { name: 'Leads', href: '/leads', icon: FiUsers },
+    { name: 'Follow-Ups', href: '/follow-ups', icon: FiClock },
+    { name: 'Training', href: '/training', icon: FiBook },
+    { name: 'Settings', href: '/profile', icon: FiSettings },
+  ];
+
+  // Don't show navbar on login page
+  if (pathname === '/login') return null;
 
   return (
-    <nav className="bg-white shadow-sm">
+    <nav className="bg-white shadow">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
@@ -25,72 +58,85 @@ export default function Navbar({ user, notifications = [] }) {
                 <span className="text-xl font-bold text-primary-600">Phoenix CRM</span>
               </Link>
             </div>
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+              {navItems.map((item) => (
+                <Link 
+                  key={item.name}
+                  href={item.href}
+                  className={`${
+                    pathname === item.href
+                      ? 'border-primary-500 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                >
+                  <item.icon className="mr-1 h-4 w-4" />
+                  {item.name}
+                </Link>
+              ))}
+            </div>
           </div>
           
-          {/* Desktop Navigation */}
-          <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
-            <Link href="/dashboard" className={`px-3 py-2 rounded-md text-sm font-medium ${pathname === '/dashboard' ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}>
-              Dashboard
-            </Link>
-            <Link href="/leads" className={`px-3 py-2 rounded-md text-sm font-medium ${pathname === '/leads' ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}>
-              Leads
-            </Link>
-            <Link href="/follow-ups" className={`px-3 py-2 rounded-md text-sm font-medium ${pathname === '/follow-ups' ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}>
-              Follow-Ups
-            </Link>
-            <Link href="/training" className={`px-3 py-2 rounded-md text-sm font-medium ${pathname === '/training' ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}>
-              Training
-            </Link>
+          <div className="hidden sm:ml-6 sm:flex sm:items-center">
+            {user && (
+              <button
+                onClick={handleSignOut}
+                className="ml-3 inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-gray-500 hover:text-gray-700 focus:outline-none"
+              >
+                <FiLogOut className="mr-1 h-4 w-4" />
+                Sign out
+              </button>
+            )}
           </div>
           
-          <div className="hidden md:ml-6 md:flex md:items-center">
-            <Link href="/notifications" className="p-2 rounded-full text-gray-700 hover:bg-gray-100 relative">
-              <FiBell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">
-                  {unreadCount}
-                </span>
-              )}
-            </Link>
-            <Link href="/profile" className="ml-3 p-2 rounded-full text-gray-700 hover:bg-gray-100">
-              <FiUser className="h-5 w-5" />
-            </Link>
-          </div>
-          
-          {/* Mobile menu button */}
-          <div className="flex items-center md:hidden">
+          <div className="-mr-2 flex items-center sm:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none"
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
             >
-              {isOpen ? <FiX className="h-6 w-6" /> : <FiMenu className="h-6 w-6" />}
+              <span className="sr-only">Open main menu</span>
+              {isOpen ? (
+                <FiX className="block h-6 w-6" />
+              ) : (
+                <FiMenu className="block h-6 w-6" />
+              )}
             </button>
           </div>
         </div>
       </div>
-      
+
       {/* Mobile menu */}
       {isOpen && (
-        <div className="md:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <Link href="/dashboard" className={`block px-3 py-2 rounded-md text-base font-medium ${pathname === '/dashboard' ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}>
-              Dashboard
-            </Link>
-            <Link href="/leads" className={`block px-3 py-2 rounded-md text-base font-medium ${pathname === '/leads' ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}>
-              Leads
-            </Link>
-            <Link href="/follow-ups" className={`block px-3 py-2 rounded-md text-base font-medium ${pathname === '/follow-ups' ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}>
-              Follow-Ups
-            </Link>
-            <Link href="/training" className={`block px-3 py-2 rounded-md text-base font-medium ${pathname === '/training' ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}>
-              Training
-            </Link>
-            <Link href="/notifications" className={`block px-3 py-2 rounded-md text-base font-medium ${pathname === '/notifications' ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}>
-              Notifications {unreadCount > 0 && `(${unreadCount})`}
-            </Link>
-            <Link href="/profile" className={`block px-3 py-2 rounded-md text-base font-medium ${pathname === '/profile' ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}>
-              Profile
-            </Link>
+        <div className="sm:hidden">
+          <div className="pt-2 pb-3 space-y-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`${
+                  pathname === item.href
+                    ? 'bg-primary-50 border-primary-500 text-primary-700'
+                    : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
+                } block pl-3 pr-4 py-2 border-l-4 text-base font-medium`}
+                onClick={() => setIsOpen(false)}
+              >
+                <div className="flex items-center">
+                  <item.icon className="mr-3 h-5 w-5" />
+                  {item.name}
+                </div>
+              </Link>
+            ))}
+            
+            {user && (
+              <button
+                onClick={handleSignOut}
+                className="block w-full text-left pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700"
+              >
+                <div className="flex items-center">
+                  <FiLogOut className="mr-3 h-5 w-5" />
+                  Sign out
+                </div>
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-import Navbar from '../../components/navigation/Navbar';
+import Navbar from './components/navigation/Navbar';
 
 // TEMPORARY: Simplified layout without auth checks
 export default function DashboardLayout({ children }) {
