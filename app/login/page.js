@@ -38,10 +38,33 @@ export default function Login() {
         throw error;
       }
 
-      // Show success message
+      // Check if user has a profile, create one if it doesn't exist
+      if (data.user) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', data.user.id)
+          .maybeSingle(); // Use maybeSingle instead of single to avoid errors if no profile exists
+
+        // If no profile exists, create one
+        if (!profileData && !profileError) {
+          const { error: insertError } = await supabase.from('profiles').insert({
+            id: data.user.id,
+            full_name: email.split('@')[0],
+            role: 'manager', // Default to manager role
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+          if (insertError) {
+            console.warn('Failed to create profile, but continuing login:', insertError);
+          }
+        }
+      }
+
+      // Show success message and redirect
       toast.success('Login successful!');
-      
-      // Use a more direct approach for navigation
+      console.log('Login successful, redirecting to dashboard...');
       window.location.href = '/dashboard';
       
     } catch (error) {
@@ -116,11 +139,10 @@ export default function Login() {
           throw signInError;
         }
         
-        // Force direct navigation to dashboard
+        // Force a direct browser navigation for more reliable redirection
         toast.success('Login successful!');
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 1000);
+        console.log('Test user created and logged in, redirecting to dashboard...');
+        window.location.href = '/dashboard';
       }
     } catch (error) {
       console.error('Error creating test user:', error);

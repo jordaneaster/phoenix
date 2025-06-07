@@ -29,57 +29,96 @@ export default async function Dashboard() {
   
   // Only query Supabase if we have a session
   if (session) {
-    // Fetch user profile to determine role
-    const { data: userProfile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
-    
-    profile = userProfile;
-    
-    // Get count of leads assigned to user
-    const { count: userLeadsCount } = await supabase
-      .from('leads')
-      .select('*', { count: 'exact', head: true })
-      .eq('assigned_to', session.user.id);
-    
-    if (userLeadsCount !== null) leadsCount = userLeadsCount;
-    
-    // Get follow-ups count (leads not contacted in 3+ days)
-    const { count: userFollowUpsCount } = await supabase
-      .from('leads')
-      .select('*', { count: 'exact', head: true })
-      .eq('assigned_to', session.user.id)
-      .lt('last_contact_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
-    
-    if (userFollowUpsCount !== null) followUpsCount = userFollowUpsCount;
-    
-    // Get unread notifications count
-    const { count: userNotificationsCount } = await supabase
-      .from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', session.user.id)
-      .eq('read', false);
-    
-    if (userNotificationsCount !== null) notificationsCount = userNotificationsCount;
-    
-    // Get incomplete training count
-    const { count: userTrainingCount } = await supabase
-      .from('training_content')
-      .select('*', { count: 'exact', head: true })
-      .not('id', 'in', (
-        supabase
-          .from('training_progress')
-          .select('training_id')
+    try {
+      // Fetch user profile to determine role
+      const { data: userProfile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .maybeSingle(); // Use maybeSingle to prevent errors
+
+      // Create profile if it doesn't exist
+      if (!userProfile && !error) {
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: session.user.id,
+            full_name: session.user.email.split('@')[0],
+            role: 'manager',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+          
+        if (!insertError) {
+          profile = newProfile;
+        }
+      } else {
+        profile = userProfile;
+      }
+      
+      // Get count of leads assigned to user
+      try {
+        const { count: userLeadsCount } = await supabase
+          .from('leads')
+          .select('*', { count: 'exact', head: true })
+          .eq('assigned_to', session.user.id);
+        
+        if (userLeadsCount !== null) leadsCount = userLeadsCount;
+      } catch (error) {
+        console.error('Failed to fetch leads count:', error);
+      }
+      
+      // Get follow-ups count (leads not contacted in 3+ days)
+      try {
+        const { count: userFollowUpsCount } = await supabase
+          .from('leads')
+          .select('*', { count: 'exact', head: true })
+          .eq('assigned_to', session.user.id)
+          .lt('last_contact_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
+        
+        if (userFollowUpsCount !== null) followUpsCount = userFollowUpsCount;
+      } catch (error) {
+        console.error('Failed to fetch follow-ups count:', error);
+      }
+      
+      // Get unread notifications count
+      try {
+        const { count: userNotificationsCount } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
           .eq('user_id', session.user.id)
-      ));
-    
-    if (userTrainingCount !== null) trainingCount = userTrainingCount;
+          .eq('read', false);
+        
+        if (userNotificationsCount !== null) notificationsCount = userNotificationsCount;
+      } catch (error) {
+        console.error('Failed to fetch notifications count:', error);
+      }
+      
+      // Get incomplete training count
+      try {
+        const { count: userTrainingCount } = await supabase
+          .from('training_content')
+          .select('*', { count: 'exact', head: true })
+          .not('id', 'in', (
+            supabase
+              .from('training_progress')
+              .select('training_id')
+              .eq('user_id', session.user.id)
+          ));
+        
+        if (userTrainingCount !== null) trainingCount = userTrainingCount;
+      } catch (error) {
+        console.error('Failed to fetch training count:', error);
+      }
+    } catch (error) {
+      console.error('Error in dashboard:', error);
+    }
   }
   
-  // Default to manager role for development, otherwise use profile role
-  const isManager = isDev || (profile?.role === 'manager');
+  // Default to manager role even if no profile exists
+  const isManager = isDev || (profile?.role === 'manager') || !profile;
   
   return (
     <div>
