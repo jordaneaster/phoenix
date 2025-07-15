@@ -1,0 +1,188 @@
+{
+  "name": "Supabase Login RBAC → Phoenix CRM",
+  "settings": { "timezone": "America/New_York" },
+  "active": true,
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Auth Event Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "path": "auth-event",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseCode": 200,
+        "responseData": "Received"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Fetch User Role",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/users?id=eq.{{$json[\"user_id\"]}}&select=role,full_name,status,department,email",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameter": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Authorization", "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "name": "Role Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [800, 300],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json[0].role }}",
+        "rules": {
+          "rules": [
+            { "value2": "admin", "operation": "equal" },
+            { "value2": "manager", "operation": "equal" },
+            { "value2": "sales", "operation": "equal" }
+          ]
+        },
+        "fallbackOutput": 3
+      }
+    },
+    {
+      "id": 4,
+      "name": "Notify Admins (Slack)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1100, 160],
+      "credentials": {
+        "slackApi": { "id": "YOUR_SLACK_CRED_ID", "name": "Slack Account" }
+      },
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": "#phoenix-auth",
+        "text": "=🚨 *Admin login* – {{$json[0].full_name}} ({{$json[0].department}})"
+      }
+    },
+    {
+      "id": 5,
+      "name": "Log Manager Login",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1100, 300],
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/login_activity",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "bodyParametersJson": "={ \"user_id\": \"{{$node[\"Auth Event Webhook\"].json[\"user_id\"]}}\", \"role\": \"manager\", \"timestamp\": \"{{$now}}\" }",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameter": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Authorization", "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      }
+    },
+    {
+      "id": 6,
+      "name": "Send Welcome Email (Sales)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1100, 440],
+      "credentials": {
+        "smtp": { "id": "YOUR_SMTP_CRED_ID", "name": "SMTP Server" }
+      },
+      "parameters": {
+        "fromEmail": "no-reply@phoenixcrm.io",
+        "toEmail": "={{ $json[0].email }}",
+        "subject": "Welcome to Phoenix CRM",
+        "text": "=Hi {{$json[0].full_name}},\n\nThanks for logging in! Here are your first steps…"
+      }
+    },
+    {
+      "id": 7,
+      "name": "Unhandled Role",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1100, 560],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "message",
+              "value": "Role not mapped in workflow"
+            }
+          ]
+        },
+        "options": {
+          "keepOnlySet": true
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Auth Event Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch User Role",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch User Role": {
+      "main": [
+        [
+          {
+            "node": "Role Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Role Router": {
+      "main": [
+        [
+          {
+            "node": "Notify Admins (Slack)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Manager Login",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Welcome Email (Sales)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unhandled Role",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

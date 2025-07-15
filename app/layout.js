@@ -8,6 +8,19 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  // Suppress browser extension async listener warnings
+  if (typeof window !== 'undefined') {
+    window.addEventListener('error', (e) => {
+      if (
+        e.message.includes('message channel closed') ||
+        e.message.includes('listener indicated an asynchronous response')
+      ) {
+        e.preventDefault();
+        return false;
+      }
+    });
+  }
+
   return (
     <html lang="en">
       <body>

@@ -2,9 +2,35 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
+// Function to notify n8n webhook
+async function notifyN8nWebhook(eventType, userId, userEmail) {
+  try {
+    const webhookUrl = process.env.N8N_WEBHOOK_URL || 'https://phxlkn.app.n8n.cloud/webhook-test/auth-event';
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        event_type: eventType,
+        user_id: userId,
+        user_email: userEmail,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('n8n webhook returned non-200 status:', response.status);
+    }
+  } catch (error) {
+    console.warn('Failed to notify n8n webhook:', error);
+    // Don't throw error - auth should still work even if webhook fails
+  }
+}
+
 export async function POST(request) {
   try {
-    // Log that we're entering the route handler
     console.log('Auth API route handler called');
     
     const { email, password } = await request.json();
@@ -33,9 +59,43 @@ export async function POST(request) {
       );
     }
     
-    // Create a redirect response
-    const redirectUrl = new URL('/dashboard', request.url);
-    return NextResponse.redirect(redirectUrl);
+    // Check if user exists in users table and is active
+    if (data.user) {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id, status, role')
+        .eq('id', data.user.id)
+        .single();
+      
+      if (userError || !userData) {
+        console.error('User not found in users table:', userError);
+        return NextResponse.json(
+          { error: 'User account not found. Please contact an administrator.' },
+          { status: 403 }
+        );
+      }
+      
+      if (userData.status !== 'active') {
+        return NextResponse.json(
+          { error: 'Your account is not active. Please contact an administrator.' },
+          { status: 403 }
+        );
+      }
+
+      // Notify n8n workflow about successful login
+      await notifyN8nWebhook('api_login', data.user.id, data.user.email);
+    }
+    
+    // Return success response instead of redirecting
+    console.log('Login successful, returning JSON response (NOT redirecting)');
+    return NextResponse.json(
+      { 
+        success: true, 
+        user: data.user,
+        message: 'Login successful' 
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error('Unexpected error in auth API route:', error);
     return NextResponse.json(

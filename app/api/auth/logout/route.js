@@ -8,12 +8,26 @@ export async function POST(request) {
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
     // Sign out the user
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
     
-    // Redirect to login page
-    return NextResponse.redirect(new URL('/login', request.url));
+    if (error) {
+      console.error('Logout error:', error);
+      return NextResponse.json(
+        { error: 'Failed to logout' },
+        { status: 400 }
+      );
+    }
+    
+    console.log('User logged out successfully');
+    return NextResponse.json(
+      { success: true, message: 'Logged out successfully' },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error('Error during logout:', error);
-    return NextResponse.redirect(new URL('/login', request.url));
+    console.error('Unexpected error during logout:', error);
+    return NextResponse.json(
+      { error: 'An unexpected error occurred during logout' },
+      { status: 500 }
+    );
   }
 }

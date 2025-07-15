@@ -18,7 +18,7 @@ export default async function Dashboard() {
   const enableMockData = ALWAYS_ENABLE_MOCK || isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
   
   // Mock data values - now always available in production
-  const mockUserId = 'dev-user-id';
+  // const mockUserId = 'dev-user-id'; // Removed unused variable
   const mockLeadsCount = 5;
   const mockFollowUpsCount = 2;
   const mockNotificationsCount = 3;
@@ -34,31 +34,18 @@ export default async function Dashboard() {
   // Only query Supabase if we have a session
   if (session) {
     try {
-      // Fetch user profile to determine role
+      console.log('Dashboard: Fetching user profile from users table for:', session.user.id);
+      // Fetch user profile from users table instead of profiles table
       const { data: userProfile, error } = await supabase
-        .from('profiles')
-        .select('*')
+        .from('users')
+        .select('id, role, status')
         .eq('id', session.user.id)
-        .maybeSingle(); // Use maybeSingle to prevent errors
+        .maybeSingle();
 
-      // Create profile if it doesn't exist
-      if (!userProfile && !error) {
-        const { data: newProfile, error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: session.user.id,
-            full_name: session.user.email.split('@')[0],
-            role: 'manager',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .select()
-          .single();
-          
-        if (!insertError) {
-          profile = newProfile;
-        }
+      if (error) {
+        console.error('Error fetching user profile from users table:', error);
       } else {
+        console.log('Successfully fetched user profile:', userProfile);
         profile = userProfile;
       }
       

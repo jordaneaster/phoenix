@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase/client';
+import { supabase, notifyAuthEvent } from '../../lib/supabase/client';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { FiAlertCircle, FiUser, FiLock } from 'react-icons/fi';
@@ -28,7 +28,7 @@ export default function Login() {
     setErrorMessage('');
 
     try {
-      // Use Supabase directly - no API call that might return HTML
+      // Use Supabase for authentication
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -38,34 +38,46 @@ export default function Login() {
         throw error;
       }
 
-      // Check if user has a profile, create one if it doesn't exist
       if (data.user) {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('id')
+        // Check if user exists in users table, create one if it doesn't exist
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id, status, role')
           .eq('id', data.user.id)
-          .maybeSingle(); // Use maybeSingle instead of single to avoid errors if no profile exists
+          .maybeSingle();
 
-        // If no profile exists, create one
-        if (!profileData && !profileError) {
-          const { error: insertError } = await supabase.from('profiles').insert({
+        // If no user record exists, create one
+        if (!userData && !userError) {
+          const { error: insertError } = await supabase.from('users').insert({
             id: data.user.id,
-            full_name: email.split('@')[0],
-            role: 'manager', // Default to manager role
+            email: data.user.email,
+            full_name: data.user.user_metadata?.full_name || email.split('@')[0],
+            role: 'sales', // Default to sales role
+            department: 'sales',
+            status: 'active',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           });
 
           if (insertError) {
-            console.warn('Failed to create profile, but continuing login:', insertError);
+            console.warn('Failed to create user record, but continuing login:', insertError);
           }
+        } else if (userData && userData.status !== 'active') {
+          throw new Error('Your account is not active. Please contact an administrator.');
         }
-      }
 
-      // Show success message and redirect
-      toast.success('Login successful!');
-      console.log('Login successful, redirecting to dashboard...');
-      window.location.href = '/dashboard';
+        // Manually trigger n8n webhook notification
+        await notifyAuthEvent('login', data.user.id, data.user.email);
+
+        // Show success message and redirect
+        toast.success('Login successful!');
+        console.log('Login successful, redirecting to dashboard...');
+        
+        // Use router.push for client-side navigation
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1000);
+      }
       
     } catch (error) {
       console.error('Login error:', error);
@@ -95,12 +107,17 @@ export default function Login() {
     try {
       console.log('Creating test user with email:', safeEmail);
       
+      const finalPassword = password.length >= 6 ? password : password + '123456'.substring(0, 6 - password.length);
+      
       // Create a test user with the provided email/password
       const { data, error } = await supabase.auth.signUp({
         email: safeEmail,
-        password: password.length >= 6 ? password : password + '123456'.substring(0, 6 - password.length),
+        password: finalPassword,
         options: {
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: {
+            full_name: `Test User (${safeEmail.split('@')[0]})`,
+          }
         },
       });
 
@@ -109,29 +126,29 @@ export default function Login() {
         throw error;
       }
 
-      // For development purposes, we'll auto-confirm the user
-      console.log('User created:', data.user?.id);
-      
-      // Create a profile for the test user
+      // Create a user record for the test user
       if (data.user) {
-        const { error: profileError } = await supabase.from('profiles').insert({
+        const { error: userError } = await supabase.from('users').insert({
           id: data.user.id,
+          email: safeEmail,
           full_name: `Test User (${safeEmail.split('@')[0]})`,
           role: 'manager', // Make test user a manager for full access
+          department: 'management',
+          status: 'active',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
         
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
+        if (userError) {
+          console.error('User record creation error:', userError);
         }
 
         toast.success('Test user created! Signing you in...');
         
         // Automatically sign in with the new credentials
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: safeEmail,
-          password: password.length >= 6 ? password : password + '123456'.substring(0, 6 - password.length),
+          password: finalPassword,
         });
         
         if (signInError) {
@@ -139,10 +156,17 @@ export default function Login() {
           throw signInError;
         }
         
-        // Force a direct browser navigation for more reliable redirection
+        // Notify n8n about the new login
+        if (signInData.user) {
+          await notifyAuthEvent('signup_and_login', signInData.user.id, signInData.user.email);
+        }
+        
         toast.success('Login successful!');
         console.log('Test user created and logged in, redirecting to dashboard...');
-        window.location.href = '/dashboard';
+        
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1000);
       }
     } catch (error) {
       console.error('Error creating test user:', error);
@@ -268,7 +292,7 @@ export default function Login() {
         )}
         
         <div className="text-center text-xs text-gray-500 mt-8">
-          <p>Use the "Create test account" option if you haven't set up users yet.</p>
+          <p>Authentication is powered by Supabase + n8n workflow integration.</p>
           <p className="mt-1">Try using an email like "test@example.com" for best results.</p>
         </div>
       </div>

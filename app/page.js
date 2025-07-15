@@ -2,7 +2,7 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { FiUsers, FiClock, FiBook, FiSettings } from 'react-icons/fi';
+import { FiUsers, FiBook, FiSettings, FiArrowRight, FiTrendingUp, FiShield } from 'react-icons/fi';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,61 +17,56 @@ export default async function Home() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <div className="bg-primary-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
-          <div className="max-w-3xl">
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
-              Phoenix CRM
-            </h1>
-            <p className="mt-6 text-xl max-w-prose">
-              Streamline your car dealership sales process with our intuitive CRM system. 
-              Manage leads, track follow-ups, and boost your team's performance.
-            </p>
-            <div className="mt-10 flex space-x-4">
-              <Link href="/login">
-                <button className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-primary-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-primary-700 focus:ring-white">
-                  Log In
-                </button>
-              </Link>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-blue-50">
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center mb-16">
+          <h1 className="text-5xl font-bold text-gray-900 mb-6">
+            Welcome to <span className="text-primary-600">Phoenix CRM</span>
+          </h1>
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Streamline your customer relationships and boost your sales with our powerful CRM platform.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link 
+              href="/login"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              Sign In
+              <FiArrowRight className="ml-2 h-5 w-5" />
+            </Link>
+            <Link 
+              href="/signup"
+              className="inline-flex items-center px-6 py-3 border border-primary-600 text-base font-medium rounded-md text-primary-600 bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              Create Account
+            </Link>
           </div>
         </div>
-      </div>
-      
-      {/* Features Section */}
-      <div className="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-            Built for car dealership sales teams
-          </h2>
-          <p className="mt-4 text-lg text-gray-500">
-            Everything you need to manage your sales process in one place.
-          </p>
-        </div>
-        
-        <div className="mt-12 grid gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-          {/* Feature 1 */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="p-2 bg-primary-100 rounded-full w-12 h-12 flex items-center justify-center">
+
+        <div className="grid md:grid-cols-3 gap-8 mt-16">
+          <div className="text-center p-6 bg-white rounded-lg shadow-sm">
+            <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center mx-auto mb-4">
               <FiUsers className="h-6 w-6 text-primary-600" />
             </div>
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Lead Management</h3>
-            <p className="mt-2 text-base text-gray-500">
-              Efficiently track and manage all your customer leads in one place.
-            </p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Lead Management</h3>
+            <p className="text-gray-600">Track and manage your leads effectively with our intuitive interface.</p>
           </div>
-          
-          {/* Feature 2 */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="p-2 bg-primary-100 rounded-full w-12 h-12 flex items-center justify-center">
-              <FiClock className="h-6 w-6 text-primary-600" />
+
+          <div className="text-center p-6 bg-white rounded-lg shadow-sm">
+            <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <FiTrendingUp className="h-6 w-6 text-primary-600" />
             </div>
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Follow-Up Reminders</h3>
-            <p className="mt-2 text-base text-gray-500">
-              Never miss a follow-up with automated reminders and notifications.
-            </p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Sales Analytics</h3>
+            <p className="text-gray-600">Get insights into your sales performance with detailed analytics.</p>
+          </div>
+
+          <div className="text-center p-6 bg-white rounded-lg shadow-sm">
+            <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <FiShield className="h-6 w-6 text-primary-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Secure & Reliable</h3>
+            <p className="text-gray-600">Your data is protected with enterprise-grade security.</p>
           </div>
           
           {/* Feature 3 */}

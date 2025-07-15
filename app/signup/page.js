@@ -2,19 +2,32 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase/client';
+import { supabase, notifyAuthEvent } from '../../lib/supabase/client';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { FiAlertCircle, FiUser, FiLock, FiMail, FiBriefcase } from 'react-icons/fi';
+import { FiAlertCircle, FiUser, FiLock, FiMail, FiPhone } from 'react-icons/fi';
 
 export default function Signup() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('sales');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    fullName: '',
+    phoneNumber: '',
+    role: 'sales',
+    department: 'sales'
+  });
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const router = useRouter();
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -22,52 +35,59 @@ export default function Signup() {
     setErrorMessage('');
 
     try {
-      // 1. Create the auth user
+      // Validate passwords match
+      if (formData.password !== formData.confirmPassword) {
+        throw new Error('Passwords do not match');
+      }
+
+      // Create user with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: formData.email,
+        password: formData.password,
         options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
-            full_name: fullName,
-            role: role
+            full_name: formData.fullName,
           }
         },
       });
 
       if (error) {
-        if (error.message.includes('email')) {
-          throw new Error(
-            'This email is either invalid or restricted. Try a different email address.'
-          );
-        } else {
-          throw error;
-        }
+        throw error;
       }
 
       if (data.user) {
-        // 2. Create a profile for the user
-        const { error: profileError } = await supabase.from('profiles').insert({
+        // Create user record in users table
+        const { error: insertError } = await supabase.from('users').insert({
           id: data.user.id,
-          full_name: fullName,
-          role: role,
+          email: formData.email,
+          full_name: formData.fullName,
+          phone_number: formData.phoneNumber || null,
+          role: formData.role,
+          department: formData.department,
+          status: 'active',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
 
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-          throw new Error('Account created but profile setup failed. Please contact support.');
+        if (insertError) {
+          console.error('Failed to create user record:', insertError);
         }
 
-        toast.success('Account created successfully!');
+        // Notify n8n workflow about new signup
+        await notifyAuthEvent('signup', data.user.id, data.user.email);
+
+        toast.success('Account created successfully! You can now sign in.');
         
-        // For development, we'll just redirect to login
-        // In production, you might want to show a "verify your email" page
-        router.push('/login');
+        // Redirect to login page
+        setTimeout(() => {
+          router.push('/login');
+        }, 2000);
       }
+      
     } catch (error) {
       console.error('Signup error:', error);
-      setErrorMessage(error.message || 'Failed to create account');
+      setErrorMessage(error.message || 'Failed to create account. Please try again.');
       toast.error('Account creation failed');
     } finally {
       setLoading(false);
@@ -109,14 +129,14 @@ export default function Signup() {
                 name="fullName"
                 type="text"
                 required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                value={formData.fullName}
+                onChange={handleInputChange}
+                className="mt-1 block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                 placeholder="John Doe"
               />
             </div>
           </div>
-          
+
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               Email address
@@ -130,15 +150,69 @@ export default function Signup() {
                 name="email"
                 type="email"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                value={formData.email}
+                onChange={handleInputChange}
+                className="mt-1 block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                 placeholder="you@example.com"
               />
             </div>
-            <p className="mt-1 text-xs text-gray-500">
-              For testing, try company domains like example.com
-            </p>
+          </div>
+
+          <div>
+            <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
+              Phone Number (Optional)
+            </label>
+            <div className="mt-1 relative rounded-md shadow-sm">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FiPhone className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="phoneNumber"
+                name="phoneNumber"
+                type="tel"
+                value={formData.phoneNumber}
+                onChange={handleInputChange}
+                className="mt-1 block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                placeholder="+1 (555) 123-4567"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+                Role
+              </label>
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleInputChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="sales">Sales</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="department" className="block text-sm font-medium text-gray-700">
+                Department
+              </label>
+              <select
+                id="department"
+                name="department"
+                value={formData.department}
+                onChange={handleInputChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="sales">Sales</option>
+                <option value="marketing">Marketing</option>
+                <option value="management">Management</option>
+                <option value="support">Support</option>
+              </select>
+            </div>
           </div>
           
           <div>
@@ -154,62 +228,54 @@ export default function Signup() {
                 name="password"
                 type="password"
                 required
-                value={password}
+                value={formData.password}
                 minLength="6"
-                onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                onChange={handleInputChange}
+                className="mt-1 block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                 placeholder="••••••••"
               />
             </div>
-            <p className="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
           </div>
-          
+
           <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-              Role
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+              Confirm Password
             </label>
             <div className="mt-1 relative rounded-md shadow-sm">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiBriefcase className="h-5 w-5 text-gray-400" />
+                <FiLock className="h-5 w-5 text-gray-400" />
               </div>
-              <select
-                id="role"
-                name="role"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="sales">Sales</option>
-                <option value="manager">Manager</option>
-              </select>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                required
+                value={formData.confirmPassword}
+                minLength="6"
+                onChange={handleInputChange}
+                className="mt-1 block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                placeholder="••••••••"
+              />
             </div>
           </div>
           
           <div>
             <button
               type="submit"
-              disabled={loading || !email || !fullName || password.length < 6}
+              disabled={loading || !formData.email || formData.password.length < 6 || formData.password !== formData.confirmPassword}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
             >
-              {loading ? 'Creating Account...' : 'Sign Up'}
+              {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </div>
         </form>
         
-        <div className="text-center text-sm">
-          <p>
+        <div className="text-center">
+          <p className="text-sm text-gray-600">
             Already have an account?{' '}
             <Link href="/login" className="font-medium text-primary-600 hover:text-primary-500">
               Sign in
             </Link>
-          </p>
-        </div>
-        
-        <div className="text-center text-xs text-gray-500 mt-4">
-          <p className="text-red-500 font-medium">Development Mode Notice</p>
-          <p className="mt-1">
-            This signup page is for development purposes. In production, you might want to
-            restrict access or implement email verification.
           </p>
         </div>
       </div>

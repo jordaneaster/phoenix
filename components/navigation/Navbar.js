@@ -18,9 +18,9 @@ export default function Navbar() {
       if (session) {
         setUser(session.user);
         
-        // Check if user is manager
+        // Check if user is manager - use users table instead of profiles
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('users')
           .select('role')
           .eq('id', session.user.id)
           .single();
@@ -33,8 +33,30 @@ export default function Navbar() {
   }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/login';
+    try {
+      // Use the logout API endpoint instead of direct Supabase client logout
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Redirect to login/signup page after successful logout
+        window.location.href = '/';
+      } else {
+        console.error('Logout failed');
+        // Fallback to client-side logout if API fails
+        await supabase.auth.signOut();
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Fallback to client-side logout if API fails
+      await supabase.auth.signOut();
+      window.location.href = '/';
+    }
   };
 
   const navItems = [
@@ -45,8 +67,8 @@ export default function Navbar() {
     { name: 'Settings', href: '/profile', icon: FiSettings },
   ];
 
-  // Don't show navbar on login page
-  if (pathname === '/login') return null;
+  // Don't show navbar on login or signup pages
+  if (pathname === '/login' || pathname === '/signup' || pathname === '/') return null;
 
   return (
     <nav className="bg-white shadow">

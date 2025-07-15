@@ -29,20 +29,21 @@ export default async function Team() {
   
   // Only query Supabase if we have a session
   if (session) {
-    // Fetch user profile to determine role
-    const { data: profile } = await supabase
-      .from('profiles')
+    // Fetch user profile to determine role - using users table instead of profiles
+    const { data: user } = await supabase
+      .from('users')
       .select('*')
       .eq('id', session.user.id)
       .single();
     
-    isManager = profile?.role === 'manager';
+    isManager = user?.role === 'manager';
     
     if (isManager) {
-      // Fetch team members
+      // Fetch team members from users table
       const { data: members } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
+        .eq('status', 'active')
         .order('full_name', { ascending: true });
       
       if (members) {
@@ -100,7 +101,10 @@ export default async function Team() {
         id: '1',
         full_name: 'John Smith',
         email: 'john@example.com',
+        phone_number: '+1-555-0101',
         role: 'sales',
+        department: 'sales',
+        status: 'active',
         created_at: new Date().toISOString(),
         metrics: {
           assignedLeads: 12,
@@ -113,7 +117,10 @@ export default async function Team() {
         id: '2',
         full_name: 'Jane Doe',
         email: 'jane@example.com',
+        phone_number: '+1-555-0102',
         role: 'sales',
+        department: 'sales',
+        status: 'active',
         created_at: new Date().toISOString(),
         metrics: {
           assignedLeads: 15,
@@ -126,7 +133,10 @@ export default async function Team() {
         id: '3',
         full_name: 'Michael Brown',
         email: 'michael@example.com',
+        phone_number: '+1-555-0103',
         role: 'sales',
+        department: 'sales',
+        status: 'active',
         created_at: new Date().toISOString(),
         metrics: {
           assignedLeads: 9,
@@ -139,7 +149,10 @@ export default async function Team() {
         id: '4',
         full_name: 'Sarah Wilson',
         email: 'sarah@example.com',
+        phone_number: '+1-555-0104',
         role: 'manager',
+        department: 'management',
+        status: 'active',
         created_at: new Date().toISOString(),
         metrics: {
           assignedLeads: 6,
@@ -238,21 +251,30 @@ export default async function Team() {
                       </div>
                       <div className="ml-4">
                         <div className="font-medium text-gray-900">{member.full_name}</div>
-                        <div className="flex mt-1 text-sm text-gray-500">
+                        <div className="flex mt-1 text-sm text-gray-500 space-x-4">
                           <div className="flex items-center">
                             <FiMail className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
                             <span>{member.email}</span>
                           </div>
+                          {member.phone_number && (
+                            <div className="flex items-center">
+                              <FiPhone className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
+                              <span>{member.phone_number}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div>
+                  <div className="flex flex-col items-end space-y-1">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       member.role === 'manager' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
                     }`}>
                       {member.role === 'manager' ? 'Manager' : 'Sales'}
                     </span>
+                    {member.department && (
+                      <span className="text-xs text-gray-500">{member.department}</span>
+                    )}
                   </div>
                 </div>
                 

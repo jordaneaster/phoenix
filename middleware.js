@@ -38,14 +38,17 @@ export async function middleware(req) {
       return res;
     }
     
-    // If user is authenticated and not already on dashboard, redirect to dashboard
-    if (session && pathname !== '/dashboard') {
-      console.log('Authenticated user detected - redirecting to dashboard');
-      const redirectUrl = new URL('/dashboard', req.url);
+    // Define public routes that don't require authentication
+    const publicRoutes = ['/login', '/signup', '/forgot-password', '/'];
+    
+    // If user is not authenticated and trying to access a protected route
+    if (!session && !publicRoutes.includes(pathname) && !enableMockData) {
+      console.log('Unauthenticated user accessing protected route - redirecting to login');
+      const redirectUrl = new URL('/login', req.url);
       return NextResponse.redirect(redirectUrl);
     }
     
-    // For all other cases, continue with the request
+    // For all other cases, continue with the request (remove the dashboard redirect)
     return res;
   } catch (error) {
     console.error('Middleware error:', error);
