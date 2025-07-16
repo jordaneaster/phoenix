@@ -41,15 +41,28 @@ export default function Signup() {
         throw new Error('Passwords do not match');
       }
 
-      // Determine the correct redirect URL
+      // More reliable redirect URL detection
       const getRedirectUrl = () => {
-        if (process.env.NODE_ENV === 'production') {
-          return process.env.NEXT_PUBLIC_VERCEL_URL || 'https://phoenix-eosin.vercel.app';
+        const currentOrigin = window.location.origin;
+        
+        // If we're on Vercel (production), use the current origin
+        if (currentOrigin.includes('vercel.app') || currentOrigin.includes('phoenix-eosin')) {
+          return currentOrigin;
         }
-        return process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        
+        // If we're in production but not on expected domain, use fallback
+        if (process.env.NODE_ENV === 'production') {
+          return 'https://phoenix-eosin.vercel.app';
+        }
+        
+        // Development
+        return 'http://localhost:3000';
       };
 
       const redirectUrl = `${getRedirectUrl()}/dashboard`;
+
+      console.log('Current origin:', window.location.origin);
+      console.log('Signup attempt with redirect URL:', redirectUrl);
 
       // Create user with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
@@ -66,11 +79,16 @@ export default function Signup() {
         },
       });
 
+      console.log('Supabase signup response:', { data, error });
+
       if (error) {
         throw error;
       }
 
-      if (data.user) {
+      // Check if signup was successful (user exists or needs confirmation)
+      if (data && (data.user || data.session)) {
+        console.log('User created successfully, showing email confirmation');
+        
         // Call server-side API to handle post-signup operations
         try {
           await fetch('/api/auth/post-signup', {
@@ -79,8 +97,8 @@ export default function Signup() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              userId: data.user.id,
-              email: data.user.email,
+              userId: data.user?.id,
+              email: formData.email,
               metadata: {
                 full_name: formData.fullName,
                 phone_number: formData.phoneNumber || null,
@@ -94,6 +112,9 @@ export default function Signup() {
         }
 
         setShowEmailConfirmation(true);
+      } else {
+        console.error('Unexpected signup response:', data);
+        throw new Error('Signup completed but user data is missing');
       }
       
     } catch (error) {
