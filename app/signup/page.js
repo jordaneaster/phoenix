@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase, notifyAuthEvent } from '../../lib/supabase/client';
+import { supabase } from '../../lib/supabase/client';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { FiAlertCircle, FiUser, FiLock, FiMail, FiPhone } from 'react-icons/fi';
+import { FiAlertCircle, FiUser, FiLock, FiMail, FiPhone, FiCheckCircle } from 'react-icons/fi';
 
 export default function Signup() {
   const [formData, setFormData] = useState({
@@ -19,6 +19,7 @@ export default function Signup() {
   });
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
   const router = useRouter();
 
   const handleInputChange = (e) => {
@@ -40,16 +41,6 @@ export default function Signup() {
         throw new Error('Passwords do not match');
       }
 
-      console.log('Attempting signup with data:', {
-        email: formData.email,
-        metadata: {
-          full_name: formData.fullName,
-          phone_number: formData.phoneNumber || null,
-          role: formData.role,
-          department: formData.department,
-        }
-      });
-
       // Create user with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
@@ -65,41 +56,102 @@ export default function Signup() {
         },
       });
 
-      console.log('Supabase signup response:', { data, error });
-
       if (error) {
-        console.error('Supabase signup error details:', error);
         throw error;
       }
 
       if (data.user) {
-        // Notify n8n workflow about new signup
+        // Call server-side API to handle post-signup operations
         try {
-          await notifyAuthEvent('signup', data.user.id, data.user.email);
+          await fetch('/api/auth/post-signup', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: data.user.id,
+              email: data.user.email,
+              metadata: {
+                full_name: formData.fullName,
+                phone_number: formData.phoneNumber || null,
+                role: formData.role,
+                department: formData.department,
+              }
+            }),
+          });
         } catch (notifyError) {
-          console.warn('Failed to notify n8n workflow:', notifyError);
-          // Don't throw here as user creation was successful
+          console.warn('Failed to complete post-signup operations:', notifyError);
         }
 
-        toast.success('Account created successfully! You can now sign in.');
-        
-        // Redirect to login page
-        setTimeout(() => {
-          router.push('/login');
-        }, 2000);
+        setShowEmailConfirmation(true);
       }
       
     } catch (error) {
-      console.error('Full signup error object:', error);
-      console.error('Error message:', error.message);
-      console.error('Error details:', error.details);
-      console.error('Error hint:', error.hint);
+      console.error('Signup error:', error);
       setErrorMessage(error.message || 'Failed to create account. Please try again.');
       toast.error('Account creation failed');
     } finally {
       setLoading(false);
     }
   };
+
+  // Improved validation logic
+  const isFormValid = () => {
+    return (
+      formData.email.trim() !== '' &&
+      formData.fullName.trim() !== '' &&
+      formData.password.length >= 6 &&
+      formData.confirmPassword.length >= 6 &&
+      formData.password === formData.confirmPassword
+    );
+  };
+
+  if (showEmailConfirmation) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+              <FiCheckCircle className="h-6 w-6 text-green-600" />
+            </div>
+            <h1 className="mt-4 text-2xl font-bold text-gray-900">Check your email</h1>
+            <p className="mt-2 text-gray-600">
+              We've sent a verification link to <strong>{formData.email}</strong>
+            </p>
+          </div>
+          
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+            <div className="flex">
+              <div className="ml-3">
+                <p className="text-sm text-blue-700">
+                  Click the verification link in your email to activate your account. 
+                  You may need to check your spam folder.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center space-y-4">
+            <button
+              onClick={() => setShowEmailConfirmation(false)}
+              className="text-sm text-primary-600 hover:text-primary-500"
+            >
+              ← Back to signup form
+            </button>
+            
+            <div>
+              <p className="text-sm text-gray-600">
+                Already verified?{' '}
+                <Link href="/login" className="font-medium text-primary-600 hover:text-primary-500">
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -269,8 +321,8 @@ export default function Signup() {
           <div>
             <button
               type="submit"
-              disabled={loading || !formData.email || formData.password.length < 6 || formData.password !== formData.confirmPassword}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+              disabled={loading || !isFormValid()}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
