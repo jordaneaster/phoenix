@@ -41,12 +41,22 @@ export default function Signup() {
         throw new Error('Passwords do not match');
       }
 
+      // Determine the correct redirect URL
+      const getRedirectUrl = () => {
+        if (process.env.NODE_ENV === 'production') {
+          return process.env.NEXT_PUBLIC_VERCEL_URL || 'https://phoenix-eosin.vercel.app';
+        }
+        return process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      };
+
+      const redirectUrl = `${getRedirectUrl()}/dashboard`;
+
       // Create user with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: redirectUrl,
           data: {
             full_name: formData.fullName,
             phone_number: formData.phoneNumber || null,
