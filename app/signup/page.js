@@ -40,6 +40,16 @@ export default function Signup() {
         throw new Error('Passwords do not match');
       }
 
+      console.log('Attempting signup with data:', {
+        email: formData.email,
+        metadata: {
+          full_name: formData.fullName,
+          phone_number: formData.phoneNumber || null,
+          role: formData.role,
+          department: formData.department,
+        }
+      });
+
       // Create user with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
@@ -48,34 +58,28 @@ export default function Signup() {
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             full_name: formData.fullName,
+            phone_number: formData.phoneNumber || null,
+            role: formData.role,
+            department: formData.department,
           }
         },
       });
 
+      console.log('Supabase signup response:', { data, error });
+
       if (error) {
+        console.error('Supabase signup error details:', error);
         throw error;
       }
 
       if (data.user) {
-        // Create user record in users table
-        const { error: insertError } = await supabase.from('users').insert({
-          id: data.user.id,
-          email: formData.email,
-          full_name: formData.fullName,
-          phone_number: formData.phoneNumber || null,
-          role: formData.role,
-          department: formData.department,
-          status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-
-        if (insertError) {
-          console.error('Failed to create user record:', insertError);
-        }
-
         // Notify n8n workflow about new signup
-        await notifyAuthEvent('signup', data.user.id, data.user.email);
+        try {
+          await notifyAuthEvent('signup', data.user.id, data.user.email);
+        } catch (notifyError) {
+          console.warn('Failed to notify n8n workflow:', notifyError);
+          // Don't throw here as user creation was successful
+        }
 
         toast.success('Account created successfully! You can now sign in.');
         
@@ -86,7 +90,10 @@ export default function Signup() {
       }
       
     } catch (error) {
-      console.error('Signup error:', error);
+      console.error('Full signup error object:', error);
+      console.error('Error message:', error.message);
+      console.error('Error details:', error.details);
+      console.error('Error hint:', error.hint);
       setErrorMessage(error.message || 'Failed to create account. Please try again.');
       toast.error('Account creation failed');
     } finally {
