@@ -82,9 +82,6 @@ export async function POST(request) {
         );
       }
 
-      // Notify n8n workflow about successful login
-    //   await notifyN8nWebhook('api_login', data.user.id, data.user.email);
-    // }
     
     // Return success response instead of redirecting
     console.log('Login successful, returning JSON response (NOT redirecting)');
