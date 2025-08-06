@@ -73,24 +73,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-}
-      
-      if (userData.status !== 'active') {
-        return NextResponse.json(
-          { error: 'Your account is not active. Please contact an administrator.' },
-          { status: 403 }
-        );
-      }
-
-    
-    // Return success response instead of redirecting
-    console.log('Login successful, returning JSON response (NOT redirecting)');
-    return NextResponse.json(
-      { 
-        success: true, 
-        user: data.user,
-        message: 'Login successful' 
-      },
-      { status: 200 }
-    );
- 
+} 
