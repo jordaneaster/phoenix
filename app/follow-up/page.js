@@ -70,11 +70,8 @@ export default async function FollowUpDashboard({ searchParams }) {
     const { data: followUpData, error: followUpError } = await query;
     if (followUpError) {
       console.error('Error fetching follow-ups:', followUpError);
-      if (followUpError.message?.includes('assigned_to') || followUpError.code === '42703') {
-        console.log('Follow-ups table missing assigned_to column, using mock data');
-        // Keep the existing mock data
-      }
-    } else if (followUpData) {
+    }
+    if (followUpData) {
       followUps = followUpData;
     }
   } else if (enableMockData) {

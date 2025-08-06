@@ -1,7 +1,8 @@
+// filepath: /home/jordaneaster/phoenix/app/dashboard/page.js
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import DashboardCard from '../../components/dashboard/DashboardCard';
-import { FiUsers, FiClock, FiBook, FiUsers as FiTeam, FiBell, FiSettings } from 'react-icons/fi';
+import { FiUsers, FiClock, FiBook, FiUsers as FiTeam, FiBell, FiSettings, FiFileText, FiTarget, FiTrendingUp } from 'react-icons/fi';
 
 // FORCE MOCK DATA: Always enable mock data in any environment
 const ALWAYS_ENABLE_MOCK = true;
@@ -18,11 +19,12 @@ export default async function Dashboard() {
   const enableMockData = ALWAYS_ENABLE_MOCK || isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
   
   // Mock data values - now always available in production
-  // const mockUserId = 'dev-user-id'; // Removed unused variable
   const mockLeadsCount = 5;
   const mockFollowUpsCount = 2;
   const mockNotificationsCount = 3;
   const mockTrainingCount = 4;
+  const mockWorksheetsCount = 7;
+  const mockProspectsCount = 12;
   
   // If we have a session, get real data, otherwise use mock data if enabled
   let profile = null;
@@ -30,6 +32,8 @@ export default async function Dashboard() {
   let followUpsCount = enableMockData ? mockFollowUpsCount : 0;
   let notificationsCount = enableMockData ? mockNotificationsCount : 0; 
   let trainingCount = enableMockData ? mockTrainingCount : 0;
+  let worksheetsCount = enableMockData ? mockWorksheetsCount : 0;
+  let prospectsCount = enableMockData ? mockProspectsCount : 0;
   
   // Only query Supabase if we have a session
   if (session) {
@@ -59,19 +63,60 @@ export default async function Dashboard() {
         if (userLeadsCount !== null) leadsCount = userLeadsCount;
       } catch (error) {
         console.error('Failed to fetch leads count:', error);
+        if (error.message?.includes('assigned_to') || error.code === '42703') {
+          console.log('Leads table missing assigned_to column, using fallback value');
+          leadsCount = enableMockData ? mockLeadsCount : 0;
+        }
       }
       
       // Get follow-ups count (leads not contacted in 3+ days)
       try {
         const { count: userFollowUpsCount } = await supabase
-          .from('leads')
+          .from('follow_ups')
           .select('*', { count: 'exact', head: true })
           .eq('assigned_to', session.user.id)
-          .lt('last_contact_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
+          .eq('completed', false);
         
         if (userFollowUpsCount !== null) followUpsCount = userFollowUpsCount;
       } catch (error) {
         console.error('Failed to fetch follow-ups count:', error);
+        if (error.message?.includes('assigned_to') || error.code === '42703') {
+          console.log('Follow-ups table missing assigned_to column, using fallback value');
+          followUpsCount = enableMockData ? mockFollowUpsCount : 0;
+        }
+      }
+      
+      // Get worksheets count
+      try {
+        const { count: userWorksheetsCount } = await supabase
+          .from('worksheets')
+          .select('*', { count: 'exact', head: true })
+          .eq('created_by', session.user.id);
+        
+        if (userWorksheetsCount !== null) worksheetsCount = userWorksheetsCount;
+      } catch (error) {
+        console.error('Failed to fetch worksheets count:', error);
+        // If column doesn't exist, fall back to mock data or 0
+        if (error.message?.includes('created_by') || error.code === '42703') {
+          console.log('Worksheets table missing created_by column, using fallback value');
+          worksheetsCount = enableMockData ? mockWorksheetsCount : 0;
+        }
+      }
+      
+      // Get prospects count
+      try {
+        const { count: userProspectsCount } = await supabase
+          .from('prospects')
+          .select('*', { count: 'exact', head: true })
+          .eq('assigned_to', session.user.id);
+        
+        if (userProspectsCount !== null) prospectsCount = userProspectsCount;
+      } catch (error) {
+        console.error('Failed to fetch prospects count:', error);
+        if (error.message?.includes('assigned_to') || error.code === '42703') {
+          console.log('Prospects table missing assigned_to column, using fallback value');
+          prospectsCount = enableMockData ? mockProspectsCount : 0;
+        }
       }
       
       // Get unread notifications count
@@ -85,6 +130,10 @@ export default async function Dashboard() {
         if (userNotificationsCount !== null) notificationsCount = userNotificationsCount;
       } catch (error) {
         console.error('Failed to fetch notifications count:', error);
+        if (error.message?.includes('does not exist') || error.code === '42P01') {
+          console.log('Notifications table does not exist, using fallback value');
+          notificationsCount = enableMockData ? mockNotificationsCount : 0;
+        }
       }
       
       // Get incomplete training count
@@ -102,6 +151,10 @@ export default async function Dashboard() {
         if (userTrainingCount !== null) trainingCount = userTrainingCount;
       } catch (error) {
         console.error('Failed to fetch training count:', error);
+        if (error.message?.includes('does not exist') || error.code === '42P01') {
+          console.log('Training tables do not exist, using fallback value');
+          trainingCount = enableMockData ? mockTrainingCount : 0;
+        }
       }
     } catch (error) {
       console.error('Error in dashboard:', error);
@@ -125,20 +178,38 @@ export default async function Dashboard() {
       )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Core CRM Features */}
+        <DashboardCard 
+          title="Working Prospects" 
+          description="Manage your active prospects" 
+          icon={<FiUsers className="h-6 w-6" />}
+          href="/prospects"
+          count={prospectsCount}
+        />
+        
+        <DashboardCard 
+          title="Follow-Up Tasks" 
+          description="Track and complete follow-ups" 
+          icon={<FiClock className="h-6 w-6" />}
+          href="/follow-up"
+          count={followUpsCount}
+        />
+        
+        <DashboardCard 
+          title="Worksheets" 
+          description="Buyer orders and deal packs" 
+          icon={<FiFileText className="h-6 w-6" />}
+          href="/worksheets"
+          count={worksheetsCount}
+        />
+        
+        {/* Legacy Features */}
         <DashboardCard 
           title="My Leads" 
           description="View and manage your leads" 
           icon={<FiUsers className="h-6 w-6" />}
           href="/leads"
           count={leadsCount}
-        />
-        
-        <DashboardCard 
-          title="Follow-Ups" 
-          description="Leads requiring your attention" 
-          icon={<FiClock className="h-6 w-6" />}
-          href="/follow-ups"
-          count={followUpsCount}
         />
         
         <DashboardCard 
@@ -149,13 +220,29 @@ export default async function Dashboard() {
           count={trainingCount}
         />
         
+        <DashboardCard 
+          title="Goals & Accountability" 
+          description="Track your sales goals" 
+          icon={<FiTarget className="h-6 w-6" />}
+          href="/goals"
+        />
+        
         {isManager && (
-          <DashboardCard 
-            title="Team Overview" 
-            description="Manage your team and performance" 
-            icon={<FiTeam className="h-6 w-6" />}
-            href="/team"
-          />
+          <>
+            <DashboardCard 
+              title="Team Overview" 
+              description="Manage your team and performance" 
+              icon={<FiTeam className="h-6 w-6" />}
+              href="/team"
+            />
+            
+            <DashboardCard 
+              title="Manager Accountability" 
+              description="Review team activity and goals" 
+              icon={<FiTrendingUp className="h-6 w-6" />}
+              href="/manager"
+            />
+          </>
         )}
         
         <DashboardCard 
