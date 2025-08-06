@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase, notifyAuthEvent } from '../../lib/supabase/client';
+import { supabase } from '../../lib/supabase/client';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { FiAlertCircle, FiUser, FiLock } from 'react-icons/fi';
@@ -65,9 +65,6 @@ export default function Login() {
         } else if (userData && userData.status !== 'active') {
           throw new Error('Your account is not active. Please contact an administrator.');
         }
-
-        // Manually trigger n8n webhook notification
-        await notifyAuthEvent('login', data.user.id, data.user.email);
 
         // Show success message and redirect
         toast.success('Login successful!');
@@ -154,11 +151,6 @@ export default function Login() {
         if (signInError) {
           console.error('Sign in error:', signInError);
           throw signInError;
-        }
-        
-        // Notify n8n about the new login
-        if (signInData.user) {
-          await notifyAuthEvent('signup_and_login', signInData.user.id, signInData.user.email);
         }
         
         toast.success('Login successful!');
@@ -292,10 +284,18 @@ export default function Login() {
         )}
         
         <div className="text-center text-xs text-gray-500 mt-8">
-          <p>Authentication is powered by Supabase + n8n workflow integration.</p>
+          <p>Authentication is powered by Supabase.</p>
           <p className="mt-1">Try using an email like "test@example.com" for best results.</p>
         </div>
       </div>
     </div>
   );
 }
+//         <div className="text-center text-xs text-gray-500 mt-8">
+//           <p>Authentication is powered by Supabase + n8n workflow integration.</p>
+//           <p className="mt-1">Try using an email like "test@example.com" for best results.</p>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }

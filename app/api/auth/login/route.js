@@ -2,33 +2,6 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-// Function to notify n8n webhook
-async function notifyN8nWebhook(eventType, userId, userEmail) {
-  try {
-    const webhookUrl = process.env.N8N_WEBHOOK_URL || 'https://phxlkn.app.n8n.cloud/webhook-test/auth-event';
-    
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        event_type: eventType,
-        user_id: userId,
-        user_email: userEmail,
-        timestamp: new Date().toISOString(),
-      }),
-    });
-
-    if (!response.ok) {
-      console.warn('n8n webhook returned non-200 status:', response.status);
-    }
-  } catch (error) {
-    console.warn('Failed to notify n8n webhook:', error);
-    // Don't throw error - auth should still work even if webhook fails
-  }
-}
-
 export async function POST(request) {
   try {
     console.log('Auth API route handler called');
@@ -81,13 +54,10 @@ export async function POST(request) {
           { status: 403 }
         );
       }
-
-      // Notify n8n workflow about successful login
-      await notifyN8nWebhook('api_login', data.user.id, data.user.email);
     }
     
-    // Return success response instead of redirecting
-    console.log('Login successful, returning JSON response (NOT redirecting)');
+    // Return success response
+    console.log('Login successful, returning JSON response');
     return NextResponse.json(
       { 
         success: true, 
@@ -104,3 +74,26 @@ export async function POST(request) {
     );
   }
 }
+      
+      if (userData.status !== 'active') {
+        return NextResponse.json(
+          { error: 'Your account is not active. Please contact an administrator.' },
+          { status: 403 }
+        );
+      }
+
+      // Notify n8n workflow about successful login
+    //   await notifyN8nWebhook('api_login', data.user.id, data.user.email);
+    // }
+    
+    // Return success response instead of redirecting
+    console.log('Login successful, returning JSON response (NOT redirecting)');
+    return NextResponse.json(
+      { 
+        success: true, 
+        user: data.user,
+        message: 'Login successful' 
+      },
+      { status: 200 }
+    );
+ 

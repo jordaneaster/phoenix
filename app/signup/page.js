@@ -88,29 +88,6 @@ export default function Signup() {
       // Check if signup was successful (user exists or needs confirmation)
       if (data && (data.user || data.session)) {
         console.log('User created successfully, showing email confirmation');
-        
-        // Call server-side API to handle post-signup operations
-        try {
-          await fetch('/api/auth/post-signup', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userId: data.user?.id,
-              email: formData.email,
-              metadata: {
-                full_name: formData.fullName,
-                phone_number: formData.phoneNumber || null,
-                role: formData.role,
-                department: formData.department,
-              }
-            }),
-          });
-        } catch (notifyError) {
-          console.warn('Failed to complete post-signup operations:', notifyError);
-        }
-
         setShowEmailConfirmation(true);
       } else {
         console.error('Unexpected signup response:', data);
