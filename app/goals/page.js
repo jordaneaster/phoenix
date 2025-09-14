@@ -24,7 +24,8 @@ export default function GoalsPage() {
     try {
       const response = await fetch('/api/goals');
       const data = await response.json();
-      setGoals(data);
+      // Support API responses that return either an array or an object like { data: [...] }
+      setGoals(Array.isArray(data) ? data : (data?.data || []));
     } catch (error) {
       console.error('Error fetching goals:', error);
     } finally {
@@ -126,7 +127,8 @@ export default function GoalsPage() {
           <p className="text-gray-600 mt-2">Track your accountability goals and progress</p>
         </div>
         <button 
-          onClick={() => setShowForm(true)}
+          type="button"
+          onClick={() => { console.log('Open goal form (top)'); setShowForm(true); }}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium"
         >
           Add New Goal
@@ -222,7 +224,8 @@ export default function GoalsPage() {
           <h3 className="text-lg font-medium text-gray-900 mb-2">No goals yet</h3>
           <p className="text-gray-600 mb-4">Start by creating your first accountability goal</p>
           <button 
-            onClick={() => setShowForm(true)}
+            type="button"
+            onClick={() => { console.log('Open goal form (empty)'); setShowForm(true); }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
           >
             Create Your First Goal
