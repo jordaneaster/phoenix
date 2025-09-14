@@ -7,7 +7,7 @@ import { FiPlus, FiUsers } from 'react-icons/fi';
 import ProspectCard from '../../components/prospects/ProspectCard';
 
 // FORCE MOCK DATA: Always enable mock data in any environment
-const ALWAYS_ENABLE_MOCK = true;
+const ALWAYS_ENABLE_MOCK = false;
 
 export default function Prospects({ searchParams }) {
   const [prospects, setProspects] = useState([]);

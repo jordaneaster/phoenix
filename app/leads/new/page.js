@@ -34,13 +34,15 @@ export default function NewLead() {
         }
         
         // Check if user is manager
-        const { data: profile } = await supabase
-          .from('profiles')
+        const { data: user, error: userError } = await supabase
+          .from('users')
           .select('role')
           .eq('id', session.user.id)
           .single();
         
-        if (profile?.role !== 'manager') {
+        if (userError) throw userError;
+        
+        if (user?.role !== 'manager') {
           toast.error('Only managers can create new leads');
           router.push('/leads');
           return;
@@ -49,10 +51,12 @@ export default function NewLead() {
         setIsManager(true);
         
         // Fetch team members
-        const { data: members } = await supabase
-          .from('profiles')
+        const { data: members, error: membersError } = await supabase
+          .from('users')
           .select('id, full_name')
           .order('full_name');
+        
+        if (membersError) throw membersError;
         
         setTeamMembers(members || []);
       } catch (error) {
@@ -76,14 +80,26 @@ export default function NewLead() {
     
     try {
       const timestamp = new Date().toISOString();
+      // Map name -> first_name, last_name and only insert columns that exist on the leads table
+      const fullName = (formData.name || '').trim();
+      const [first_name, ...rest] = fullName ? fullName.split(' ') : [''];
+      const last_name = rest.join(' ') || null;
+      
+      const payload = {
+        first_name: first_name || null,
+        last_name,
+        email: formData.email || null,
+        phone: formData.phone || null,
+        status: formData.status || 'new',
+        assigned_to: formData.assigned_to || null,
+        notes: formData.notes || null,
+        created_at: timestamp,
+        updated_at: timestamp,
+      };
+      
       const { data, error } = await supabase
         .from('leads')
-        .insert({
-          ...formData,
-          created_at: timestamp,
-          updated_at: timestamp,
-          last_contact_at: timestamp
-        })
+        .insert(payload)
         .select();
       
       if (error) throw error;

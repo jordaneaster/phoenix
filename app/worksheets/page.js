@@ -1,113 +1,42 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { WorksheetRepository } from '../../lib/repositories';
 import Link from 'next/link';
 import { FiPlus, FiFileText, FiClipboard } from 'react-icons/fi';
 import WorksheetCard from '../../components/worksheets/WorksheetCard';
 import WorksheetFilters from '../../components/worksheets/WorksheetFilters';
 
-// FORCE MOCK DATA: Always enable mock data in any environment
-const ALWAYS_ENABLE_MOCK = true;
+export default function WorksheetsPage() {
+  const [worksheets, setWorksheets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-export const dynamic = 'force-dynamic';
+  // Add default isManager to prevent ReferenceError when not defined
+  const isManager = false;
 
-export default async function Worksheets({ searchParams }) {
-  const supabase = createServerComponentClient({ cookies });
-  
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  // Check if mock data is enabled
-  const isDev = process.env.NODE_ENV === 'development';
-  const enableMockData = ALWAYS_ENABLE_MOCK || isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
-  
-  // Default values
-  let worksheets = [];
-  let isManager = enableMockData ? true : false;
-  
-  // Filter parameters
-  const type = searchParams?.type || '';
-  const status = searchParams?.status || '';
-  
-  // Only query Supabase if we have a session
-  if (session) {
-    // Check user role
-    const { data: user } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
-    
-    isManager = user?.role === 'manager';
-    
-    // Build query
-    let query = supabase
-      .from('worksheets')
-      .select(`
-        *,
-        users:created_by (full_name),
-        prospects (name, email)
-      `);
-    
-    // If not manager, only show own worksheets
-    if (!isManager) {
-      query = query.eq('created_by', session.user.id);
-    }
-    
-    // Apply filters
-    if (type) {
-      query = query.eq('type', type);
-    }
-    if (status) {
-      query = query.eq('status', status);
-    }
-    
-    // Order by most recent
-    query = query.order('created_at', { ascending: false });
-    
-    const { data: worksheetData } = await query;
-    if (worksheetData) {
-      worksheets = worksheetData;
-    }
-  } else if (enableMockData) {
-    // Mock worksheets data
-    worksheets = [
-      {
-        id: '1',
-        title: 'John Smith - Honda Accord Deal',
-        type: 'buyer_order',
-        status: 'draft',
-        prospect_id: '1',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        users: { full_name: 'Sales Rep' },
-        prospects: { name: 'John Smith', email: 'john@example.com' }
-      },
-      {
-        id: '2',
-        title: 'Jane Doe - Toyota Camry Package',
-        type: 'deal_pack',
-        status: 'pending_approval',
-        prospect_id: '2',
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-        updated_at: new Date(Date.now() - 86400000).toISOString(),
-        users: { full_name: 'Sales Rep' },
-        prospects: { name: 'Jane Doe', email: 'jane@example.com' }
-      },
-      {
-        id: '3',
-        title: 'Robert Johnson - F-150 Order',
-        type: 'buyer_order',
-        status: 'approved',
-        prospect_id: '3',
-        created_at: new Date(Date.now() - 172800000).toISOString(),
-        updated_at: new Date(Date.now() - 172800000).toISOString(),
-        users: { full_name: 'Sales Rep' },
-        prospects: { name: 'Robert Johnson', email: 'robert@example.com' }
+  useEffect(() => {
+    async function fetchWorksheets() {
+      try {
+        setLoading(true);
+        // Fetch worksheets without relying on a foreign-key relationship to 'prospects'
+        const data = await WorksheetRepository.getAll();
+        console.log('Fetched worksheets:', data);
+        setWorksheets(data || []);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching worksheets:', err);
+        setError('Failed to load worksheets. Please try again.');
+      } finally {
+        setLoading(false);
       }
-    ];
-  }
-  
+    }
+
+    fetchWorksheets();
+  }, []);
+
   return (
-    <div>
+    <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Worksheets</h1>
         
@@ -118,15 +47,6 @@ export default async function Worksheets({ searchParams }) {
           </button>
         </Link>
       </div>
-      
-      {!session && enableMockData && (
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-          <h3 className="text-sm font-medium text-yellow-800">Mock Data Mode</h3>
-          <p className="mt-1 text-xs text-yellow-700">
-            Using mock worksheet data because no authenticated session was found.
-          </p>
-        </div>
-      )}
       
       {/* Filters */}
       <WorksheetFilters />

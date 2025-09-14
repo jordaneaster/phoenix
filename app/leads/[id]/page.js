@@ -1,7 +1,7 @@
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { redirect, notFound } from 'next/navigation';
 import { FiEdit, FiArrowLeft, FiMessageSquare } from 'react-icons/fi';
 import LeadNotes from '../../../components/leads/LeadNotes';
 
@@ -9,9 +9,12 @@ export const dynamic = 'force-dynamic';
 
 export default async function LeadDetail({ params }) {
   const supabase = createServerComponentClient({ cookies });
-  
   const { data: { session } } = await supabase.auth.getSession();
-  
+
+  if (!session?.user) {
+    return redirect('/login');
+  }
+
   // Fetch user profile
   const { data: profile } = await supabase
     .from('profiles')

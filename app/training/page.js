@@ -3,19 +3,12 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { FiPlay, FiCheck, FiFileText } from 'react-icons/fi';
 
-// FORCE MOCK DATA: Always enable mock data in any environment
-const ALWAYS_ENABLE_MOCK = true;
-
 export const dynamic = 'force-dynamic';
 
 export default async function Training() {
   const supabase = createServerComponentClient({ cookies });
   
   const { data: { session } } = await supabase.auth.getSession();
-  
-  // Check if mock data is enabled (either in dev mode, via env var, or forced)
-  const isDev = process.env.NODE_ENV === 'development';
-  const enableMockData = ALWAYS_ENABLE_MOCK || isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
   
   // Default values
   let trainingContent = [];
@@ -43,45 +36,6 @@ export default async function Training() {
     completedTrainingIds = new Set(
       completedTraining ? completedTraining.map(item => item.training_id) : []
     );
-  } else if (enableMockData) {
-    // Mock training content
-    trainingContent = [
-      {
-        id: '1',
-        title: 'Sales Process Overview',
-        description: 'Learn the fundamentals of our sales process',
-        content_url: 'https://example.com/videos/sales-process',
-        content_type: 'video',
-        created_at: new Date().toISOString()
-      },
-      {
-        id: '2',
-        title: 'Product Knowledge: Sedan Line',
-        description: 'Detailed features of our sedan product line',
-        content_url: 'https://example.com/videos/sedan-features',
-        content_type: 'video',
-        created_at: new Date().toISOString()
-      },
-      {
-        id: '3',
-        title: 'Handling Objections',
-        description: 'Techniques for addressing common customer objections',
-        content_url: 'https://example.com/videos/objections',
-        content_type: 'video',
-        created_at: new Date().toISOString()
-      },
-      {
-        id: '4',
-        title: 'CRM Usage Guide',
-        description: 'How to effectively use Phoenix CRM',
-        content_url: 'https://example.com/docs/crm-guide',
-        content_type: 'document',
-        created_at: new Date().toISOString()
-      }
-    ];
-    
-    // Mark some training as completed for development
-    completedTrainingIds = new Set(['1', '3']);
   }
   
   return (
@@ -94,15 +48,6 @@ export default async function Training() {
           {completedTrainingIds.size} / {trainingContent.length} Completed
         </div>
       </div>
-      
-      {!session && isDev && (
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-          <h3 className="text-sm font-medium text-yellow-800">Development Mode</h3>
-          <p className="mt-1 text-xs text-yellow-700">
-            Using mock training data because no authenticated session was found.
-          </p>
-        </div>
-      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {trainingContent.map((training) => (

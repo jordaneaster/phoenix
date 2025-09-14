@@ -79,3 +79,49 @@
 ```bash
 git clone https://github.com/your-org/phoenix-crm.git
 cd phoenix-crm
+```
+
+## Setup Instructions
+
+You can use the setup script to install dependencies and create necessary config files:
+
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+Or manually install dependencies:
+
+```bash
+npm install
+```
+
+### 3. Environment Variables
+Make sure your `.env` file contains the necessary environment variables, especially:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_KEY` (Get this from your Supabase dashboard under Settings > API > service_role)
+
+### 4. Seeding the Database
+To populate your database with test data:
+
+```bash
+npm run seed
+```
+
+### 5. Testing Repositories
+To test that your repositories are working correctly:
+
+```bash
+npm run test-repos
+```
+
+### 6. Running the Application
+```bash
+npm run dev
+```
+
+### 7. Stored Procedures
+Make sure you've run the SQL script containing all stored procedures before testing repositories.
+You can find the SQL in the `db.sql` file.

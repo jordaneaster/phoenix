@@ -1,188 +1,137 @@
-// filepath: /home/jordaneaster/phoenix/app/dashboard/page.js
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import DashboardCard from '../../components/dashboard/DashboardCard';
 import { FiUsers, FiClock, FiBook, FiUsers as FiTeam, FiBell, FiSettings, FiFileText, FiTarget, FiTrendingUp } from 'react-icons/fi';
 
-// FORCE MOCK DATA: Always enable mock data in any environment
-const ALWAYS_ENABLE_MOCK = true;
-
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
   const supabase = createServerComponentClient({ cookies });
-  
   const { data: { session } } = await supabase.auth.getSession();
-  
-  // Check if mock data is enabled (either in dev mode, via env var, or forced)
-  const isDev = process.env.NODE_ENV === 'development';
-  const enableMockData = ALWAYS_ENABLE_MOCK || isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
-  
-  // Mock data values - now always available in production
-  const mockLeadsCount = 5;
-  const mockFollowUpsCount = 2;
-  const mockNotificationsCount = 3;
-  const mockTrainingCount = 4;
-  const mockWorksheetsCount = 7;
-  const mockProspectsCount = 12;
-  
-  // If we have a session, get real data, otherwise use mock data if enabled
-  let profile = null;
-  let leadsCount = enableMockData ? mockLeadsCount : 0;
-  let followUpsCount = enableMockData ? mockFollowUpsCount : 0;
-  let notificationsCount = enableMockData ? mockNotificationsCount : 0; 
-  let trainingCount = enableMockData ? mockTrainingCount : 0;
-  let worksheetsCount = enableMockData ? mockWorksheetsCount : 0;
-  let prospectsCount = enableMockData ? mockProspectsCount : 0;
-  
-  // Only query Supabase if we have a session
-  if (session) {
-    try {
-      console.log('Dashboard: Fetching user profile from users table for:', session.user.id);
-      // Fetch user profile from users table instead of profiles table
-      const { data: userProfile, error } = await supabase
-        .from('users')
-        .select('id, role, status')
-        .eq('id', session.user.id)
-        .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching user profile from users table:', error);
-      } else {
-        console.log('Successfully fetched user profile:', userProfile);
-        profile = userProfile;
-      }
-      
-      // Get count of leads assigned to user
-      try {
-        const { count: userLeadsCount } = await supabase
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .eq('assigned_to', session.user.id);
-        
-        if (userLeadsCount !== null) leadsCount = userLeadsCount;
-      } catch (error) {
-        console.error('Failed to fetch leads count:', error);
-        if (error.message?.includes('assigned_to') || error.code === '42703') {
-          console.log('Leads table missing assigned_to column, using fallback value');
-          leadsCount = enableMockData ? mockLeadsCount : 0;
-        }
-      }
-      
-      // Get follow-ups count (leads not contacted in 3+ days)
-      try {
-        const { count: userFollowUpsCount } = await supabase
-          .from('follow_ups')
-          .select('*', { count: 'exact', head: true })
-          .eq('assigned_to', session.user.id)
-          .eq('completed', false);
-        
-        if (userFollowUpsCount !== null) followUpsCount = userFollowUpsCount;
-      } catch (error) {
-        console.error('Failed to fetch follow-ups count:', error);
-        if (error.message?.includes('assigned_to') || error.code === '42703') {
-          console.log('Follow-ups table missing assigned_to column, using fallback value');
-          followUpsCount = enableMockData ? mockFollowUpsCount : 0;
-        }
-      }
-      
-      // Get worksheets count
-      try {
-        const { count: userWorksheetsCount } = await supabase
-          .from('worksheets')
-          .select('*', { count: 'exact', head: true })
-          .eq('created_by', session.user.id);
-        
-        if (userWorksheetsCount !== null) worksheetsCount = userWorksheetsCount;
-      } catch (error) {
-        console.error('Failed to fetch worksheets count:', error);
-        // If column doesn't exist, fall back to mock data or 0
-        if (error.message?.includes('created_by') || error.code === '42703') {
-          console.log('Worksheets table missing created_by column, using fallback value');
-          worksheetsCount = enableMockData ? mockWorksheetsCount : 0;
-        }
-      }
-      
-      // Get prospects count
-      try {
-        const { count: userProspectsCount } = await supabase
-          .from('prospects')
-          .select('*', { count: 'exact', head: true })
-          .eq('assigned_to', session.user.id);
-        
-        if (userProspectsCount !== null) prospectsCount = userProspectsCount;
-      } catch (error) {
-        console.error('Failed to fetch prospects count:', error);
-        if (error.message?.includes('assigned_to') || error.code === '42703') {
-          console.log('Prospects table missing assigned_to column, using fallback value');
-          prospectsCount = enableMockData ? mockProspectsCount : 0;
-        }
-      }
-      
-      // Get unread notifications count
-      try {
-        const { count: userNotificationsCount } = await supabase
-          .from('notifications')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', session.user.id)
-          .eq('read', false);
-        
-        if (userNotificationsCount !== null) notificationsCount = userNotificationsCount;
-      } catch (error) {
-        console.error('Failed to fetch notifications count:', error);
-        if (error.message?.includes('does not exist') || error.code === '42P01') {
-          console.log('Notifications table does not exist, using fallback value');
-          notificationsCount = enableMockData ? mockNotificationsCount : 0;
-        }
-      }
-      
-      // Get incomplete training count
-      try {
-        const { count: userTrainingCount } = await supabase
-          .from('training_content')
-          .select('*', { count: 'exact', head: true })
-          .not('id', 'in', (
-            supabase
-              .from('training_progress')
-              .select('training_id')
-              .eq('user_id', session.user.id)
-          ));
-        
-        if (userTrainingCount !== null) trainingCount = userTrainingCount;
-      } catch (error) {
-        console.error('Failed to fetch training count:', error);
-        if (error.message?.includes('does not exist') || error.code === '42P01') {
-          console.log('Training tables do not exist, using fallback value');
-          trainingCount = enableMockData ? mockTrainingCount : 0;
-        }
-      }
-    } catch (error) {
-      console.error('Error in dashboard:', error);
+  if (!session?.user) {
+    // Redirect to login if no session
+    return null;
+  }
+
+  let profile = null;
+  let leadsCount = 0;
+  let followUpsCount = 0;
+  let notificationsCount = 0;
+  let trainingCount = 0;
+  let worksheetsCount = 0;
+  let prospectsCount = 0;
+
+  try {
+    const userProfile = await supabase.rpc('get_user_by_id', { user_id: session.user.id });
+    profile = Array.isArray(userProfile.data) && userProfile.data.length > 0 ? userProfile.data[0] : userProfile.data;
+  } catch (err) {
+    const { data: userProfile } = await supabase
+      .from('users')
+      .select('id, role, status')
+      .eq('id', session.user.id)
+      .maybeSingle();
+    profile = userProfile;
+  }
+
+  try {
+    const { count } = await supabase
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('assigned_to', session.user.id);
+    if (count !== null) leadsCount = count;
+  } catch (error) {
+    console.error('Failed to fetch leads count:', error);
+  }
+
+  try {
+    const followUpsResult = await supabase.rpc('get_user_follow_ups', { user_id: session.user.id });
+    followUpsCount = Array.isArray(followUpsResult.data) ? followUpsResult.data.length : 0;
+  } catch (error) {
+    try {
+      const { count } = await supabase
+        .from('follow_ups')
+        .select('*', { count: 'exact', head: true })
+        .eq('assigned_to', session.user.id)
+        .eq('status', 'pending');
+      if (count !== null) followUpsCount = count;
+    } catch (e) {
+      console.error('Failed to fetch follow-ups count:', e);
     }
   }
-  
-  // Default to manager role even if no profile exists
-  const isManager = enableMockData || (profile?.role === 'manager') || !profile;
-  
+
+  try {
+    const worksheetsResult = await supabase.rpc('get_user_worksheets', { user_id: session.user.id });
+    worksheetsCount = Array.isArray(worksheetsResult.data) ? worksheetsResult.data.length : 0;
+  } catch (error) {
+    try {
+      const { count } = await supabase
+        .from('worksheets')
+        .select('*', { count: 'exact', head: true })
+        .eq('created_by', session.user.id);
+      if (count !== null) worksheetsCount = count;
+    } catch (e) {
+      console.error('Failed to fetch worksheets count:', e);
+    }
+  }
+
+  try {
+    const prospectsResult = await supabase.rpc('get_user_prospects', { user_id: session.user.id });
+    prospectsCount = Array.isArray(prospectsResult.data) ? prospectsResult.data.length : 0;
+  } catch (error) {
+    try {
+      const { count } = await supabase
+        .from('prospects')
+        .select('*', { count: 'exact', head: true })
+        .eq('assigned_to', session.user.id);
+      if (count !== null) prospectsCount = count;
+    } catch (e) {
+      console.error('Failed to fetch prospects count:', e);
+    }
+  }
+
+  try {
+    const notificationsResult = await supabase.rpc('get_user_notifications', { user_id: session.user.id });
+    notificationsCount = Array.isArray(notificationsResult.data) ? notificationsResult.data.filter(n => !n.read).length : 0;
+  } catch (error) {
+    try {
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', session.user.id)
+        .eq('read', false);
+      if (count !== null) notificationsCount = count;
+    } catch (e) {
+      console.error('Failed to fetch notifications count:', e);
+    }
+  }
+
+  try {
+    const { count } = await supabase
+      .from('training_content')
+      .select('*', { count: 'exact', head: true })
+      .not('id', 'in', (
+        supabase
+          .from('training_progress')
+          .select('training_id')
+          .eq('user_id', session.user.id)
+      ));
+    if (count !== null) trainingCount = count;
+  } catch (error) {
+    console.error('Failed to fetch training count:', error);
+  }
+
+  const isManager = (profile?.role === 'manager');
+
   return (
     <div>
       <h1 className="text-2xl font-semibold text-gray-900 mb-6">Dashboard</h1>
-      
-      {!session && enableMockData && (
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-          <h3 className="text-sm font-medium text-yellow-800">Mock Data Mode</h3>
-          <p className="mt-1 text-xs text-yellow-700">
-            Using mock data because no authenticated session was found.
-          </p>
-        </div>
-      )}
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Core CRM Features */}
         <DashboardCard 
           title="Working Prospects" 
           description="Manage your active prospects" 
-          icon={<FiUsers className="h-6 w-6" />}
+          icon={<FiUsers className="h-6 w-6" />} 
           href="/prospects"
           count={prospectsCount}
         />
@@ -203,7 +152,6 @@ export default async function Dashboard() {
           count={worksheetsCount}
         />
         
-        {/* Legacy Features */}
         <DashboardCard 
           title="My Leads" 
           description="View and manage your leads" 

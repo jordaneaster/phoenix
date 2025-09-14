@@ -3,9 +3,6 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { FiUser, FiMail, FiPhone, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 
-// FORCE MOCK DATA: Always enable mock data in any environment
-const ALWAYS_ENABLE_MOCK = true;
-
 export const dynamic = 'force-dynamic';
 
 export default async function Team() {
@@ -13,12 +10,12 @@ export default async function Team() {
   
   const { data: { session } } = await supabase.auth.getSession();
   
-  // Check if mock data is enabled (either in dev mode, via env var, or forced)
-  const isDev = process.env.NODE_ENV === 'development';
-  const enableMockData = ALWAYS_ENABLE_MOCK || isDev || process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === 'true';
+  if (!session?.user) {
+    return null;
+  }
   
   // Default values
-  let isManager = enableMockData ? true : false;
+  let isManager = false;
   let teamMembers = [];
   let performanceStats = {
     totalLeads: 0,
@@ -27,149 +24,70 @@ export default async function Team() {
     conversionRate: 0,
   };
   
-  // Only query Supabase if we have a session
-  if (session) {
-    // Fetch user profile to determine role - using users table instead of profiles
-    const { data: user } = await supabase
+  // Fetch user role
+  const { data: user } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', session.user.id)
+    .single();
+  
+  isManager = user?.role === 'manager';
+  
+  if (isManager) {
+    // Fetch team members
+    const { data: members } = await supabase
       .from('users')
       .select('*')
-      .eq('id', session.user.id)
-      .single();
+      .eq('status', 'active')
+      .order('full_name', { ascending: true });
     
-    isManager = user?.role === 'manager';
-    
-    if (isManager) {
-      // Fetch team members from users table
-      const { data: members } = await supabase
-        .from('users')
-        .select('*')
-        .eq('status', 'active')
-        .order('full_name', { ascending: true });
+    if (members) {
+      teamMembers = members;
       
-      if (members) {
-        teamMembers = members;
+      // Fetch lead statistics for each team member
+      const promises = members.map(async (member) => {
+        // Get total leads assigned to this member
+        const { count: assignedCount } = await supabase
+          .from('leads')
+          .select('*', { count: 'exact', head: true })
+          .eq('assigned_to', member.id);
         
-        // Fetch lead statistics for each team member
-        const promises = members.map(async (member) => {
-          // Get total leads assigned to this member
-          const { count: assignedCount } = await supabase
-            .from('leads')
-            .select('*', { count: 'exact', head: true })
-            .eq('assigned_to', member.id);
-          
-          // Get closed leads for this member
-          const { count: closedCount } = await supabase
-            .from('leads')
-            .select('*', { count: 'exact', head: true })
-            .eq('assigned_to', member.id)
-            .in('status', ['closed_won', 'closed_lost']);
-          
-          // Get won leads for this member
-          const { count: wonCount } = await supabase
-            .from('leads')
-            .select('*', { count: 'exact', head: true })
-            .eq('assigned_to', member.id)
-            .eq('status', 'closed_won');
-          
-          // Calculate metrics
-          member.metrics = {
-            assignedLeads: assignedCount || 0,
-            closedLeads: closedCount || 0,
-            wonLeads: wonCount || 0,
-            conversionRate: assignedCount ? Math.round((wonCount / assignedCount) * 100) : 0
-          };
-          
-          return member;
-        });
+        // Get closed leads for this member
+        const { count: closedCount } = await supabase
+          .from('leads')
+          .select('*', { count: 'exact', head: true })
+          .eq('assigned_to', member.id)
+          .in('status', ['closed_won', 'closed_lost']);
         
-        // Wait for all statistics to be calculated
-        teamMembers = await Promise.all(promises);
+        // Get won leads for this member
+        const { count: wonCount } = await supabase
+          .from('leads')
+          .select('*', { count: 'exact', head: true })
+          .eq('assigned_to', member.id)
+          .eq('status', 'closed_won');
         
-        // Calculate team-wide stats
-        performanceStats.totalLeads = teamMembers.reduce((sum, member) => sum + member.metrics.assignedLeads, 0);
-        performanceStats.leadsClosed = teamMembers.reduce((sum, member) => sum + member.metrics.closedLeads, 0);
-        performanceStats.leadsWon = teamMembers.reduce((sum, member) => sum + member.metrics.wonLeads, 0);
-        performanceStats.conversionRate = performanceStats.totalLeads 
-          ? Math.round((performanceStats.leadsWon / performanceStats.totalLeads) * 100) 
-          : 0;
-      }
+        // Calculate metrics
+        member.metrics = {
+          assignedLeads: assignedCount || 0,
+          closedLeads: closedCount || 0,
+          wonLeads: wonCount || 0,
+          conversionRate: assignedCount ? Math.round((wonCount / assignedCount) * 100) : 0
+        };
+        
+        return member;
+      });
+      
+      // Wait for all statistics to be calculated
+      teamMembers = await Promise.all(promises);
+      
+      // Calculate team-wide stats
+      performanceStats.totalLeads = teamMembers.reduce((sum, member) => sum + member.metrics.assignedLeads, 0);
+      performanceStats.leadsClosed = teamMembers.reduce((sum, member) => sum + member.metrics.closedLeads, 0);
+      performanceStats.leadsWon = teamMembers.reduce((sum, member) => sum + member.metrics.wonLeads, 0);
+      performanceStats.conversionRate = performanceStats.totalLeads 
+        ? Math.round((performanceStats.leadsWon / performanceStats.totalLeads) * 100) 
+        : 0;
     }
-  } else if (enableMockData) {
-    // Hard-coded mock team members data
-    teamMembers = [
-      {
-        id: '1',
-        full_name: 'John Smith',
-        email: 'john@example.com',
-        phone_number: '+1-555-0101',
-        role: 'sales',
-        department: 'sales',
-        status: 'active',
-        created_at: new Date().toISOString(),
-        metrics: {
-          assignedLeads: 12,
-          closedLeads: 8,
-          wonLeads: 5,
-          conversionRate: 42
-        }
-      },
-      {
-        id: '2',
-        full_name: 'Jane Doe',
-        email: 'jane@example.com',
-        phone_number: '+1-555-0102',
-        role: 'sales',
-        department: 'sales',
-        status: 'active',
-        created_at: new Date().toISOString(),
-        metrics: {
-          assignedLeads: 15,
-          closedLeads: 10,
-          wonLeads: 7,
-          conversionRate: 47
-        }
-      },
-      {
-        id: '3',
-        full_name: 'Michael Brown',
-        email: 'michael@example.com',
-        phone_number: '+1-555-0103',
-        role: 'sales',
-        department: 'sales',
-        status: 'active',
-        created_at: new Date().toISOString(),
-        metrics: {
-          assignedLeads: 9,
-          closedLeads: 5,
-          wonLeads: 3,
-          conversionRate: 33
-        }
-      },
-      {
-        id: '4',
-        full_name: 'Sarah Wilson',
-        email: 'sarah@example.com',
-        phone_number: '+1-555-0104',
-        role: 'manager',
-        department: 'management',
-        status: 'active',
-        created_at: new Date().toISOString(),
-        metrics: {
-          assignedLeads: 6,
-          closedLeads: 4,
-          wonLeads: 2,
-          conversionRate: 33
-        }
-      }
-    ];
-    
-    // Calculate team-wide stats for mock data
-    performanceStats.totalLeads = teamMembers.reduce((sum, member) => sum + member.metrics.assignedLeads, 0);
-    performanceStats.leadsClosed = teamMembers.reduce((sum, member) => sum + member.metrics.closedLeads, 0);
-    performanceStats.leadsWon = teamMembers.reduce((sum, member) => sum + member.metrics.wonLeads, 0);
-    performanceStats.conversionRate = performanceStats.totalLeads 
-      ? Math.round((performanceStats.leadsWon / performanceStats.totalLeads) * 100) 
-      : 0;
   }
   
   // If not a manager, show access denied
@@ -197,15 +115,6 @@ export default async function Team() {
   return (
     <div>
       <h1 className="text-2xl font-semibold text-gray-900 mb-6">Team Overview</h1>
-      
-      {!session && isDev && (
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-          <h3 className="text-sm font-medium text-yellow-800">Development Mode</h3>
-          <p className="mt-1 text-xs text-yellow-700">
-            Using mock team data because no authenticated session was found.
-          </p>
-        </div>
-      )}
       
       {/* Team Performance Summary */}
       <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

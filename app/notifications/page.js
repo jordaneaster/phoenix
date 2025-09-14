@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { FiBell, FiClock, FiCheckCircle, FiAlertTriangle, FiInfo } from 'react-icons/fi';
 
 // FORCE MOCK DATA: Always enable mock data in any environment
-const ALWAYS_ENABLE_MOCK = true;
+const ALWAYS_ENABLE_MOCK = false;
 
 export const dynamic = 'force-dynamic';
 

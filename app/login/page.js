@@ -66,14 +66,56 @@ export default function Login() {
           throw new Error('Your account is not active. Please contact an administrator.');
         }
 
+        // Persist session on the server so server components can read it
+        try {
+          const session = data.session;
+          if (session) {
+            console.log('Setting server-side auth cookie...');
+            const resp = await fetch('/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ event: 'SIGNED_IN', session })
+            });
+            
+            if (!resp.ok) {
+              const errorText = await resp.text();
+              console.error('Server failed to set auth cookie', errorText);
+              throw new Error(`Server failed to set auth cookie: ${errorText}`);
+            }
+            
+            const result = await resp.json();
+            console.log('Auth cookie set result:', result);
+            
+            // Verify the session was properly set by making a call to check session
+            const { data: sessionData } = await supabase.auth.getSession();
+            console.log('Session after cookie set:', sessionData?.session ? 'Valid' : 'Missing');
+            
+            if (!sessionData?.session) {
+              console.warn('Session not properly set - attempting refresh');
+              await supabase.auth.refreshSession();
+            }
+          }
+        } catch (cookieErr) {
+          console.error('Error calling server auth route to set cookie:', cookieErr);
+        }
+
         // Show success message and redirect
         toast.success('Login successful!');
         console.log('Login successful, redirecting to dashboard...');
         
-        // Use router.push for client-side navigation
+        // Add a slight delay to ensure cookies are properly set
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Redirect with router.push
+        router.push('/dashboard');
+        
+        // Fallback redirect if router.push doesn't work
         setTimeout(() => {
-          router.push('/dashboard');
-        }, 1000);
+          if (window.location.pathname !== '/dashboard') {
+            console.log('Fallback redirect');
+            window.location.href = '/dashboard';
+          }
+        }, 1500);
       }
       
     } catch (error) {
@@ -153,12 +195,42 @@ export default function Login() {
           throw signInError;
         }
         
+        // Persist session on the server for server-side rendering
+        try {
+          const session = signInData?.session;
+          if (session) {
+            console.log('Setting server-side auth cookie for test user...');
+            const resp = await fetch('/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ event: 'SIGNED_IN', session })
+            });
+            
+            if (!resp.ok) {
+              const errorText = await resp.text();
+              console.error('Server failed to set auth cookie for test user', errorText);
+              throw new Error(`Server failed to set test user auth cookie: ${errorText}`);
+            }
+            
+            const result = await resp.json();
+            console.log('Test user auth cookie set result:', result);
+            
+            // Verify the session was properly set
+            const { data: sessionData } = await supabase.auth.getSession();
+            console.log('Test user session after cookie set:', sessionData?.session ? 'Valid' : 'Missing');
+          }
+        } catch (cookieErr) {
+          console.error('Error calling server auth route to set cookie for test user:', cookieErr);
+        }
+        
         toast.success('Login successful!');
         console.log('Test user created and logged in, redirecting to dashboard...');
         
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 1000);
+        // Add a slight delay to ensure cookies are properly set
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Redirect after cookie set
+        router.push('/dashboard');
       }
     } catch (error) {
       console.error('Error creating test user:', error);
