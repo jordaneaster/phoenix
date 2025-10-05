@@ -9,15 +9,32 @@ export const dynamic = 'force-dynamic';
 export default async function Home() {
   const supabase = createServerComponentClient({ cookies });
   
-  const { data: { session } } = await supabase.auth.getSession();
+  // Only check session for regular users, not demo access
+  let session = null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    session = data.session;
+  } catch (error) {
+    console.error('Failed to get session:', error);
+  }
   
   // If user is already logged in, redirect to dashboard
   if (session) {
     redirect('/dashboard');
   }
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-blue-50">
+      {/* Demo Banner at the top */}
+      <div className="bg-green-100 py-4 px-6 text-center">
+        <p className="text-green-800 font-medium text-lg">
+          👋 <span className="font-bold">View all seed data without login:</span>{' '}
+          <Link href="/demo-view" className="underline font-bold hover:text-green-700">
+            Click here to explore the demo
+          </Link>
+        </p>
+      </div>
+      
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold text-gray-900 mb-6">
@@ -29,12 +46,21 @@ export default async function Home() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
+              href="/demo-view"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              View Demo Data
+              <FiArrowRight className="ml-2 h-5 w-5" />
+            </Link>
+            
+            <Link 
               href="/login"
               className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
               Sign In
               <FiArrowRight className="ml-2 h-5 w-5" />
             </Link>
+            
             <Link 
               href="/signup"
               className="inline-flex items-center px-6 py-3 border border-primary-600 text-base font-medium rounded-md text-primary-600 bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
@@ -97,11 +123,18 @@ export default async function Home() {
       <div className="bg-primary-100">
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8 lg:flex lg:items-center lg:justify-between">
           <h2 className="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-            <span className="block">Ready to boost your sales?</span>
-            <span className="block text-primary-600">Log in to get started.</span>
+            <span className="block">Ready to explore the data?</span>
+            <span className="block text-primary-600">Check out our interactive demo.</span>
           </h2>
           <div className="mt-8 flex lg:mt-0 lg:flex-shrink-0">
             <div className="inline-flex rounded-md shadow">
+              <Link href="/demo-view">
+                <button className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                  View Demo Data
+                </button>
+              </Link>
+            </div>
+            <div className="ml-3 inline-flex rounded-md shadow">
               <Link href="/login">
                 <button className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700">
                   Log In

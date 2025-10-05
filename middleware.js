@@ -36,11 +36,11 @@ export async function middleware(req) {
     console.log(`Middleware: ${pathname} - Session ${session ? 'exists' : 'missing'}`);
     
     // If user is not authenticated and trying to access a protected route
-    if (!session) {
-      console.log(`Redirecting to /login from ${pathname} - no valid session found`);
-      const redirectUrl = new URL('/login', req.url);
-      return NextResponse.redirect(redirectUrl);
-    }
+    // if (!session) {
+    //   console.log(`Redirecting to /login from ${pathname} - no valid session found`);
+    //   const redirectUrl = new URL('/login', req.url);
+    //   return NextResponse.redirect(redirectUrl);
+    // }
     
     // For authenticated users, continue with the request
     return res;
